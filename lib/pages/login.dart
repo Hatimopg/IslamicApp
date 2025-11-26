@@ -19,8 +19,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => loading = true);
 
     try {
-      // 🔥 IMPORTANT : SI TU ES SUR ÉMULATEUR
-      // Utilise 10.0.2.2 au lieu de localhost
       final url = Uri.parse("http://localhost:3000/login");
 
       final response = await http.post(
@@ -35,20 +33,13 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // On check que le token existe
         if (data["token"] != null) {
-          // Connexion OK
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => HomePage()),
           );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Erreur inconnue.")),
-          );
         }
       } else {
-        // ❌ Mauvais mdp ou user
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Identifiants incorrects")),
         );
@@ -65,39 +56,74 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: username,
-              decoration: InputDecoration(labelText: "Username"),
-            ),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: InputDecoration(labelText: "Password"),
-            ),
-            const SizedBox(height: 20),
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Container(
+          width: 420,
+          padding: EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "IslamicApp",
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal.shade700,
+                ),
+              ),
+              SizedBox(height: 30),
 
-            loading
-                ? CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: login,
-              child: const Text("Login"),
-            ),
+              TextField(
+                controller: username,
+                decoration: InputDecoration(labelText: "Nom d'utilisateur"),
+              ),
+              SizedBox(height: 14),
 
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => RegisterPage()),
-                );
-              },
-              child: const Text("Créer un compte"),
-            )
-          ],
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(labelText: "Mot de passe"),
+              ),
+              SizedBox(height: 26),
+
+              loading
+                  ? CircularProgressIndicator(color: Colors.teal)
+                  : MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: ElevatedButton(
+                  onPressed: login,
+                  child: Text("Se connecter"),
+                ),
+              ),
+
+              SizedBox(height: 10),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => RegisterPage()),
+                  );
+                },
+                child: Text(
+                  "Créer un compte",
+                  style: TextStyle(color: Colors.teal.shade700),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
