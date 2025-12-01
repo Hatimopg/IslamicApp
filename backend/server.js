@@ -12,17 +12,30 @@ app.use(cors());
 app.use(express.json());
 
 // REGISTER
+// REGISTER
 app.post("/register", async (req, res) => {
-    const { username, password, country, region, birthdate } = req.body;
-    const hash = await bcrypt.hash(password, 10);
+    try {
+        const { username, password, country, region, birthdate } = req.body;
 
-    await db.execute(
-        "INSERT INTO users (username, password_hash, country, region, birthdate) VALUES (?,?,?,?,?)",
-        [username, hash, country, region, birthdate]
-    );
+        console.log("📩 /register received:", req.body);
 
-    res.json({ status: "ok" });
+        const hash = await bcrypt.hash(password, 10);
+
+        const [result] = await db.execute(
+            "INSERT INTO users (username, password_hash, country, region, birthdate) VALUES (?, ?, ?, ?, ?)",
+            [username, hash, country, region, birthdate]
+        );
+
+        console.log("✅ INSERT OK:", result);
+
+        res.json({ status: "ok" });
+
+    } catch (err) {
+        console.error("❌ ERROR IN /register:", err);
+        res.status(500).json({ error: "server error", details: err.message });
+    }
 });
+
 
 // LOGIN
 app.post("/login", async (req, res) => {
