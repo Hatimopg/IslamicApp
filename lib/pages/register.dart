@@ -21,7 +21,7 @@ class _RegisterState extends State<RegisterPage> {
     setState(() => loading = true);
 
     try {
-      final url = Uri.parse("http://localhost:3000/register");
+      final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/register");
 
       final response = await http.post(
         url,

@@ -19,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => loading = true);
 
     try {
-      final url = Uri.parse("http://localhost:3000/login");
+      final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/login");
 
       final response = await http.post(
         url,
