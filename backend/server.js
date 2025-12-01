@@ -13,58 +13,54 @@ app.use(express.json());
 
 // REGISTER
 app.post("/register", async (req, res) => {
-    try {
-        const { username, password, country, region, birthdate } = req.body;
+    const { username, password, country, region, birthdate } = req.body;
+    const hash = await bcrypt.hash(password, 10);
 
-        const hash = await bcrypt.hash(password, 10);
+    await db.execute(
+        "INSERT INTO users (username, password_hash, country, region, birthdate) VALUES (?,?,?,?,?)",
+        [username, hash, country, region, birthdate]
+    );
 
-        await db.execute(
-            "INSERT INTO users (username, password_hash, country, region, birthdate) VALUES (?,?,?,?,?)",
-            [username, hash, country, region, birthdate]
-        );
-
-        res.json({ status: "ok" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Erreur serveur" });
-    }
+    res.json({ status: "ok" });
 });
 
 // LOGIN
 app.post("/login", async (req, res) => {
-    try {
-        const { username, password } = req.body;
+    const { username, password } = req.body;
 
-        const [rows] = await db.execute(
-            "SELECT * FROM users WHERE username = ?",
-            [username]
-        );
+    const [rows] = await db.execute(
+        "SELECT * FROM users WHERE username = ?",
+        [username]
+    );
 
-        if (rows.length === 0)
-            return res.status(400).json({ error: "Utilisateur inconnu" });
+    if (rows.length === 0)
+        return res.status(400).json({ error: "Utilisateur inconnu" });
 
-        const user = rows[0];
+    const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
 
-        const match = await bcrypt.compare(password, user.password_hash);
-        if (!match)
-            return res.status(400).json({ error: "Mot de passe incorrect" });
+    if (!match)
+        return res.status(400).json({ error: "Mot de passe incorrect" });
 
-        const token = jwt.sign(
-            {
-                id: user.id,
-                country: user.country,
-                region: user.region
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: "7d" }
-        );
+    const token = jwt.sign(
+        {
+            id: user.id,
+            country: user.country,
+            region: user.region
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+    );
 
-        res.json({ token });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Erreur serveur" });
-    }
+    res.json({ token });
 });
+
+
+
+app.get("/", (req, res) => {
+  res.json({ message: "IslamicApp backend is running 🚀" });
+});
+
 
 // SERVER
 const PORT = process.env.PORT || 3000;
