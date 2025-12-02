@@ -3,33 +3,21 @@ name: Deploy Backend to Railway
 on:
   push:
     branches:
-      - main # Déploie automatiquement à chaque push sur main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: 📦 Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-      - name: 📁 Install dependencies
+      - name: Deploy to Railway
         working-directory: backend
-        run: npm install
-
-      - name: 🔍 Run basic test (ping server)
-        working-directory: backend
-        run: node -e "console.log('Test OK')"
-
-      - name: 🚀 Deploy to Railway
-        uses: railwayapp/railway-action@v3
-        with:
-          service: 296de3f8-08a8-4ae8-a68f-7f562723d67e
-          project: 8fe50503-81a1-47c2-9a89-3f64fc4c56ae
-          environment: 2f2e55de-a3de-4a2d-be1b-cc5aff44c017
-          apiToken: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service=296de3f8-08a8-4ae8-a68f-7f562723d67e --environment=2f2e55de-a3de-4a2d-be1b-cc5aff44c017 --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
