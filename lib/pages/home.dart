@@ -17,7 +17,7 @@ class _HomeState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      Center(child: Text("Accueil", style: TextStyle(fontSize: 22))),
+      Center(child: Text("Accueil")),
       ChatPage(),
       ProfilePage(userId: widget.userId),
     ];
@@ -27,7 +27,7 @@ class _HomeState extends State<HomePage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
-        indicatorColor: Colors.teal.shade200,
+        indicatorColor: Colors.teal.shade100,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

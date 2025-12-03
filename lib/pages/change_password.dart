@@ -17,13 +17,14 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Future<void> changePassword() async {
     if (newPass.text != confirmPass.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Les mots de passe ne correspondent pas")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Les mots de passe ne correspondent pas")));
       return;
     }
 
-    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/change-password");
+    final url = Uri.parse(
+        "https://exciting-learning-production-d784.up.railway.app/change-password");
+
     final res = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
@@ -35,12 +36,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
 
     if (res.statusCode == 200) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Mot de passe changé !")));
       Navigator.pop(context);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Mot de passe mis à jour")));
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Erreur : ancien mot de passe incorrect")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Ancien mot de passe incorrect")));
     }
   }
 
@@ -67,7 +68,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               obscureText: true,
               decoration: InputDecoration(labelText: "Confirmer le mot de passe"),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 25),
             ElevatedButton(
               onPressed: changePassword,
               child: Text("Valider"),

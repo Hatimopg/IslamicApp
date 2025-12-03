@@ -157,29 +157,22 @@ app.get("/profile/:id", async (req, res) => {
        UPLOAD PROFILE PICTURE
 —————————————————————————————— */
 
-app.post("/upload-profile/:id", upload.single("image"), async (req, res) => {
-    try {
-        if (!req.file)
-            return res.status(400).json({ error: "Aucun fichier envoyé" });
+app.post("/upload-profile", upload.single("image"), async (req, res) => {
+    const userId = req.body.user_id;
+    const file = req.file;
 
-        const userId = req.params.id;
-        const imagePath = req.file.filename;
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
 
-        await db.execute(
-            "UPDATE users SET profile_pic = ? WHERE id = ?",
-            [imagePath, userId]
-        );
+    const imageUrl = `${process.env.BASE_URL}/uploads/${file.filename}`;
 
-        res.json({
-            message: "Photo mise à jour",
-            imageUrl: "/uploads/" + imagePath,
-        });
+    await db.execute("UPDATE users SET profile = ? WHERE id = ?", [
+        imageUrl,
+        userId,
+    ]);
 
-    } catch (err) {
-        console.error("❌ UPLOAD ERROR:", err);
-        res.status(500).json({ error: "Erreur serveur" });
-    }
+    res.json({ success: true, url: imageUrl });
 });
+
 
 /* ——————————————————————————————
               ROOT TEST
