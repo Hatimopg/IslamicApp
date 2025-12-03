@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'chat.dart';
+import 'profile.dart';
 
 class HomePage extends StatefulWidget {
+  final int userId; // <-- IMPORTANT
+
+  HomePage({required this.userId});
+
   @override
   _HomeState createState() => _HomeState();
 }
@@ -9,14 +14,14 @@ class HomePage extends StatefulWidget {
 class _HomeState extends State<HomePage> {
   int index = 0;
 
-  final pages = [
-    Center(child: Text("Accueil")),
-    ChatPage(),
-    Center(child: Text("Profil")),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      Center(child: Text("Accueil")),
+      ChatPage(),
+      ProfilePage(userId: widget.userId), // <-- ICI, on charge le vrai profil
+    ];
+
     return Scaffold(
       body: pages[index],
       bottomNavigationBar: NavigationBar(

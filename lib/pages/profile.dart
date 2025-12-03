@@ -15,14 +15,23 @@ class _ProfilePageState extends State<ProfilePage> {
   bool loading = true;
 
   Future<void> loadProfile() async {
-    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
-    final res = await http.get(url);
+    final url = Uri.parse(
+        "https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}"
+    );
 
-    if (res.statusCode == 200) {
-      setState(() {
-        user = jsonDecode(res.body);
-        loading = false;
-      });
+    try {
+      final res = await http.get(url);
+
+      if (res.statusCode == 200) {
+        setState(() {
+          user = jsonDecode(res.body);
+          loading = false;
+        });
+      } else {
+        print("Erreur backend: ${res.body}");
+      }
+    } catch (e) {
+      print("Erreur réseau: $e");
     }
   }
 
@@ -34,44 +43,99 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return Center(child: CircularProgressIndicator());
+    if (loading) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: Text("Profil")),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text("Profil"),
+        centerTitle: true,
+      ),
+
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+
+            // ---- PHOTO ----
             CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage("assets/default.jpg"), // plus tard → upload
+              radius: 55,
+              backgroundColor: Colors.teal.shade300,
+              child: Icon(Icons.person, size: 60, color: Colors.white),
             ),
+
             const SizedBox(height: 20),
-            Text("Nom : ${user!['username']}"),
-            Text("Pays : ${user!['country']}"),
-            Text("Région : ${user!['region']}"),
-            Text("Naissance : ${user!['birthdate']}"),
+
+            // ---- NOM ----
+            Text(
+              user!["username"],
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ---- INFOS ----
+            infoLine("Pays", user!["country"]),
+            infoLine("Région", user!["region"]),
+            infoLine("Naissance", user!["birthdate"]),
 
             const SizedBox(height: 30),
 
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, "/change-password");
-              },
-              child: Text("Modifier le mot de passe"),
+            // ---- BOUTON MDP ----
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.lock_reset),
+                label: const Text("Modifier le mot de passe"),
+                onPressed: () {
+                  Navigator.pushNamed(context, "/change-password");
+                },
+              ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
 
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, "/login");
-              },
-              child: Text("Se déconnecter"),
-            )
+            // ---- BOUTON LOGOUT ----
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.logout),
+                label: const Text("Se déconnecter"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                ),
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, "/login");
+                },
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ---- WIDGET INFO ----
+  Widget infoLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Text(
+            "$label : ",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 16)),
+          ),
+        ],
       ),
     );
   }

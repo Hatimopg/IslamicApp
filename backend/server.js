@@ -3,6 +3,9 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { db } from "./db.js";
 
 dotenv.config();
@@ -11,33 +14,56 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// REGISTER
-// REGISTER
+/* ——————————————————————————————
+    FOLDERS + MULTER UPLOAD CONFIG
+—————————————————————————————— */
+
+const uploadFolder = "uploads/";
+
+if (!fs.existsSync(uploadFolder)) {
+    fs.mkdirSync(uploadFolder);
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadFolder),
+    filename: (req, file, cb) => {
+        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, unique + path.extname(file.originalname));
+    },
+});
+
+const upload = multer({ storage });
+
+app.use("/uploads", express.static("uploads"));
+
+/* ——————————————————————————————
+              REGISTER
+—————————————————————————————— */
+
 app.post("/register", async (req, res) => {
     try {
         const { username, password, country, region, birthdate } = req.body;
 
-        console.log("📩 /register received:", req.body);
-
         const hash = await bcrypt.hash(password, 10);
 
         const [result] = await db.execute(
-            "INSERT INTO users (username, password_hash, country, region, birthdate) VALUES (?, ?, ?, ?, ?)",
+            `INSERT INTO users (username, password_hash, country, region, birthdate)
+             VALUES (?, ?, ?, ?, ?)`,
             [username, hash, country, region, birthdate]
         );
 
-        console.log("✅ INSERT OK:", result);
-
-        res.json({ status: "ok" });
+        res.json({ status: "ok", user_id: result.insertId });
 
     } catch (err) {
-        console.error("❌ ERROR IN /register:", err);
+        console.error("❌ REGISTER ERROR:", err);
         res.status(500).json({ error: "server error", details: err.message });
     }
 });
 
+/* ——————————————————————————————
+                LOGIN
+—————————————————————————————— */
 
-// LOGIN
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
@@ -59,14 +85,18 @@ app.post("/login", async (req, res) => {
         {
             id: user.id,
             country: user.country,
-            region: user.region
+            region: user.region,
         },
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
     );
 
-    res.json({ token });
+    res.json({ token, user_id: user.id });
 });
+
+/* ——————————————————————————————
+         CHANGE PASSWORD
+—————————————————————————————— */
 
 app.post("/change-password", async (req, res) => {
     const { user_id, old_password, new_password } = req.body;
@@ -89,9 +119,17 @@ app.post("/change-password", async (req, res) => {
     res.json({ success: true });
 });
 
+/* ——————————————————————————————
+          GET USER PROFILE
+—————————————————————————————— */
+
 app.get("/profile/:id", async (req, res) => {
     const { id } = req.params;
-    const [rows] = await db.execute("SELECT id, username, country, region, birthdate FROM users WHERE id = ?", [id]);
+
+    const [rows] = await db.execute(
+        "SELECT id, username, country, region, birthdate, profile_pic FROM users WHERE id = ?",
+        [id]
+    );
 
     if (rows.length === 0)
         return res.status(404).json({ error: "Utilisateur non trouvé" });
@@ -99,13 +137,46 @@ app.get("/profile/:id", async (req, res) => {
     res.json(rows[0]);
 });
 
+/* ——————————————————————————————
+       UPLOAD PROFILE PICTURE
+—————————————————————————————— */
 
-app.get("/", (req, res) => {
-  res.json({ message: "IslamicApp backend is running 🚀" });
+app.post("/upload-profile/:id", upload.single("image"), async (req, res) => {
+    try {
+        if (!req.file)
+            return res.status(400).json({ error: "Aucun fichier envoyé" });
+
+        const userId = req.params.id;
+        const imagePath = req.file.filename;
+
+        await db.execute(
+            "UPDATE users SET profile_pic = ? WHERE id = ?",
+            [imagePath, userId]
+        );
+
+        res.json({
+            message: "Photo mise à jour",
+            imageUrl: "/uploads/" + imagePath,
+        });
+
+    } catch (err) {
+        console.error("❌ UPLOAD ERROR:", err);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
 });
 
+/* ——————————————————————————————
+              ROOT TEST
+—————————————————————————————— */
 
-// SERVER
+app.get("/", (req, res) => {
+    res.json({ message: "IslamicApp backend is running 🚀" });
+});
+
+/* ——————————————————————————————
+              SERVER START
+—————————————————————————————— */
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Running on port: ${PORT}`);
