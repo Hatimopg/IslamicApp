@@ -177,9 +177,6 @@ app.get("/profile/:id", async (req, res) => {
     }
 });
 
-});
-
-
 
 /* ——————————————————————————————
               ROOT TEST
