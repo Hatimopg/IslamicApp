@@ -3,7 +3,7 @@ import 'chat.dart';
 import 'profile.dart';
 
 class HomePage extends StatefulWidget {
-  final int userId; // <-- IMPORTANT
+  final int userId;
 
   HomePage({required this.userId});
 
@@ -17,9 +17,9 @@ class _HomeState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      Center(child: Text("Accueil")),
+      Center(child: Text("Accueil", style: TextStyle(fontSize: 22))),
       ChatPage(),
-      ProfilePage(userId: widget.userId), // <-- ICI, on charge le vrai profil
+      ProfilePage(userId: widget.userId),
     ];
 
     return Scaffold(
@@ -27,7 +27,7 @@ class _HomeState extends State<HomePage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
-        indicatorColor: Colors.teal.shade100,
+        indicatorColor: Colors.teal.shade200,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
