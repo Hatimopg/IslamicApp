@@ -15,33 +15,42 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   TextEditingController newPass = TextEditingController();
   TextEditingController confirmPass = TextEditingController();
 
+  bool loading = false;
+
   Future<void> changePassword() async {
-    if (newPass.text != confirmPass.text) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Les mots de passe ne correspondent pas")));
+    if (newPass.text.trim() != confirmPass.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Les mots de passe ne correspondent pas")),
+      );
       return;
     }
+
+    setState(() => loading = true);
 
     final url = Uri.parse(
         "https://exciting-learning-production-d784.up.railway.app/change-password");
 
-    final res = await http.post(
+    final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "user_id": widget.userId,
-        "old_password": oldPass.text,
-        "new_password": newPass.text,
+        "old_password": oldPass.text.trim(),
+        "new_password": newPass.text.trim(),
       }),
     );
 
-    if (res.statusCode == 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Mot de passe changé !")));
+    setState(() => loading = false);
+
+    if (response.statusCode == 200) {
       Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Mot de passe mis à jour")),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Ancien mot de passe incorrect")));
+        SnackBar(content: Text("Ancien mot de passe incorrect")),
+      );
     }
   }
 
@@ -58,18 +67,25 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               obscureText: true,
               decoration: InputDecoration(labelText: "Ancien mot de passe"),
             ),
+            SizedBox(height: 12),
+
             TextField(
               controller: newPass,
               obscureText: true,
               decoration: InputDecoration(labelText: "Nouveau mot de passe"),
             ),
+            SizedBox(height: 12),
+
             TextField(
               controller: confirmPass,
               obscureText: true,
               decoration: InputDecoration(labelText: "Confirmer le mot de passe"),
             ),
+
             SizedBox(height: 25),
-            ElevatedButton(
+            loading
+                ? CircularProgressIndicator()
+                : ElevatedButton(
               onPressed: changePassword,
               child: Text("Valider"),
             )

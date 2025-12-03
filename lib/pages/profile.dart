@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'change_password.dart';
+import 'login.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
+
   ProfilePage({required this.userId});
 
   @override
@@ -15,47 +16,20 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? user;
   bool loading = true;
-  File? selectedImage;
 
   Future<void> loadProfile() async {
-    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
-    final res = await http.get(url);
+    final url = Uri.parse(
+        "https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
 
-    if (res.statusCode == 200) {
-      setState(() {
-        user = jsonDecode(res.body);
-        loading = false;
-      });
-    }
-  }
-
-  Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-
-    if (picked != null) {
-      setState(() {
-        selectedImage = File(picked.path);
-      });
-
-      await uploadImage(File(picked.path));
-    }
-  }
-
-  Future<void> uploadImage(File file) async {
-    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/upload-profile");
-
-    var request = http.MultipartRequest("POST", url);
-    request.fields["user_id"] = widget.userId.toString();
-    request.files.add(await http.MultipartFile.fromPath("profile", file.path));
-
-    var response = await request.send();
+    final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      print("Upload OK");
-      loadProfile();
+      setState(() {
+        user = jsonDecode(response.body);
+        loading = false;
+      });
     } else {
-      print("Erreur upload");
+      setState(() => loading = false);
     }
   }
 
@@ -67,28 +41,35 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return Center(child: CircularProgressIndicator());
+    if (loading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (user == null) {
+      return Center(child: Text("Erreur chargement profil"));
+    }
+
+    String cleanDate = user!["birthdate"].toString().split("T")[0];
 
     return Scaffold(
       appBar: AppBar(title: Text("Profil")),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             GestureDetector(
-              onTap: pickImage,
+              onTap: () {
+                // PLUS TARD : ouvrir la galerie
+              },
               child: CircleAvatar(
-                radius: 60,
-                backgroundImage: selectedImage != null
-                    ? FileImage(selectedImage!)
-                    : (user!["profile"] != null
-                    ? NetworkImage(
-                    "https://exciting-learning-production-d784.up.railway.app/uploads/${user!["profile"]}")
-                    : AssetImage("assets/default.jpg")) as ImageProvider,
+                radius: 55,
+                backgroundImage: user!["profile"] != null
+                    ? NetworkImage(user!["profile"])
+                    : AssetImage("assets/default.jpg") as ImageProvider,
               ),
             ),
 
-            SizedBox(height: 10),
+            SizedBox(height: 20),
             Text(
               user!["username"],
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -96,45 +77,71 @@ class _ProfilePageState extends State<ProfilePage> {
 
             SizedBox(height: 20),
 
-            infoRow("Pays", user!["country"]),
-            infoRow("Région", user!["region"]),
-            infoRow("Naissance", user!["birthdate"].split("T")[0]),
+            Row(
+              children: [
+                Text("Pays : ", style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(user!["country"]),
+              ],
+            ),
+            Row(
+              children: [
+                Text("Région : ",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(user!["region"]),
+              ],
+            ),
+            Row(
+              children: [
+                Text("Naissance : ",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(cleanDate),
+              ],
+            ),
 
             SizedBox(height: 30),
 
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, "/change-password");
-              },
               icon: Icon(Icons.lock_reset),
               label: Text("Modifier le mot de passe"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChangePasswordPage(userId: widget.userId),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+                minimumSize: Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
 
-            SizedBox(height: 15),
+            SizedBox(height: 20),
 
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, "/login");
-              },
               icon: Icon(Icons.logout),
               label: Text("Se déconnecter"),
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                      (route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                minimumSize: Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Text("$label : ",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Text(value, style: TextStyle(fontSize: 16)),
-        ],
       ),
     );
   }

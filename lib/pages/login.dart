@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        if (data["token"] != null && data["userId"] != null) {
+        if (data["userId"] != null) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

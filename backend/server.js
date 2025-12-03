@@ -157,21 +157,26 @@ app.get("/profile/:id", async (req, res) => {
        UPLOAD PROFILE PICTURE
 —————————————————————————————— */
 
-app.post("/upload-profile", upload.single("image"), async (req, res) => {
-    const userId = req.body.user_id;
-    const file = req.file;
+app.get("/profile/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
 
-    if (!file) return res.status(400).json({ error: "No file uploaded" });
+    const [rows] = await db.execute(
+      "SELECT id, username, country, region, DATE(birthdate) AS birthdate, profile FROM users WHERE id = ?",
+      [id]
+    );
 
-    const imageUrl = `${process.env.BASE_URL}/uploads/${file.filename}`;
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
 
-    await db.execute("UPDATE users SET profile = ? WHERE id = ?", [
-        imageUrl,
-        userId,
-    ]);
+    res.json(rows[0]);
 
-    res.json({ success: true, url: imageUrl });
+  } catch (err) {
+    console.error("❌ ERROR /profile:", err);
+    res.status(500).json({ error: "server error", details: err.message });
+  }
 });
+
 
 
 /* ——————————————————————————————
