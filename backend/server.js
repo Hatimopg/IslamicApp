@@ -68,6 +68,36 @@ app.post("/login", async (req, res) => {
     res.json({ token });
 });
 
+app.post("/change-password", async (req, res) => {
+    const { user_id, old_password, new_password } = req.body;
+
+    const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [user_id]);
+
+    if (rows.length === 0)
+        return res.status(400).json({ error: "Utilisateur introuvable" });
+
+    const user = rows[0];
+
+    const match = await bcrypt.compare(old_password, user.password_hash);
+    if (!match)
+        return res.status(400).json({ error: "Ancien mot de passe incorrect" });
+
+    const newHash = await bcrypt.hash(new_password, 10);
+
+    await db.execute("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, user_id]);
+
+    res.json({ success: true });
+});
+
+app.get("/profile/:id", async (req, res) => {
+    const { id } = req.params;
+    const [rows] = await db.execute("SELECT id, username, country, region, birthdate FROM users WHERE id = ?", [id]);
+
+    if (rows.length === 0)
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+
+    res.json(rows[0]);
+});
 
 
 app.get("/", (req, res) => {
