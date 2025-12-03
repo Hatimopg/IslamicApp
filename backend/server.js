@@ -65,34 +65,50 @@ app.post("/register", async (req, res) => {
 —————————————————————————————— */
 
 app.post("/login", async (req, res) => {
-    const { username, password } = req.body;
+    try {
+        const { username, password } = req.body;
 
-    const [rows] = await db.execute(
-        "SELECT * FROM users WHERE username = ?",
-        [username]
-    );
+        const [rows] = await db.execute(
+            "SELECT * FROM users WHERE username = ?",
+            [username]
+        );
 
-    if (rows.length === 0)
-        return res.status(400).json({ error: "Utilisateur inconnu" });
+        if (rows.length === 0) {
+            return res.status(400).json({ error: "Utilisateur inconnu" });
+        }
 
-    const user = rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
+        const user = rows[0];
+        const match = await bcrypt.compare(password, user.password_hash);
 
-    if (!match)
-        return res.status(400).json({ error: "Mot de passe incorrect" });
+        if (!match) {
+            return res.status(400).json({ error: "Mot de passe incorrect" });
+        }
 
-    const token = jwt.sign(
-        {
-            id: user.id,
+        const token = jwt.sign(
+            {
+                id: user.id,
+                country: user.country,
+                region: user.region
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        // 🔥🔥🔥 LA PARTIE MANQUANTE QUI FAIT TOUT CASSER
+        res.json({
+            token: token,
+            userId: user.id,        //   ⬅⬅⬅ Obligatoire pour Flutter
+            username: user.username,
             country: user.country,
-            region: user.region,
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-    );
+            region: user.region
+        });
 
-    res.json({ token, user_id: user.id });
+    } catch (err) {
+        console.error("Erreur login:", err);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
 });
+
 
 /* ——————————————————————————————
          CHANGE PASSWORD
