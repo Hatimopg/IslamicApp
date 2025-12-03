@@ -143,7 +143,7 @@ app.get("/profile/:id", async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await db.execute(
-        "SELECT id, username, country, region, birthdate, profile_pic FROM users WHERE id = ?",
+        "SELECT id, username, country, region, birthdate, profile FROM users WHERE id = ?",
         [id]
     );
 
@@ -158,23 +158,25 @@ app.get("/profile/:id", async (req, res) => {
 —————————————————————————————— */
 
 app.get("/profile/:id", async (req, res) => {
-  try {
     const { id } = req.params;
 
-    const [rows] = await db.execute(
-      "SELECT id, username, country, region, DATE(birthdate) AS birthdate, profile FROM users WHERE id = ?",
-      [id]
-    );
+    try {
+        const [rows] = await db.execute(
+            "SELECT id, username, country, region, birthdate, profile FROM users WHERE id = ?",
+            [id]
+        );
 
-    if (rows.length === 0)
-      return res.status(404).json({ error: "Utilisateur non trouvé" });
+        if (rows.length === 0)
+            return res.status(404).json({ error: "Utilisateur non trouvé" });
 
-    res.json(rows[0]);
+        res.json(rows[0]);
 
-  } catch (err) {
-    console.error("❌ ERROR /profile:", err);
-    res.status(500).json({ error: "server error", details: err.message });
-  }
+    } catch (err) {
+        console.error("❌ ERROR IN /profile:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 });
 
 
