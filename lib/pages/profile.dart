@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'change_password.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -15,11 +15,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? user;
   bool loading = true;
+  File? selectedImage;
 
   Future<void> loadProfile() async {
-    final url = Uri.parse(
-        "https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
-
+    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
     final res = await http.get(url);
 
     if (res.statusCode == 200) {
@@ -30,35 +29,33 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  String cleanDate(String date) {
-    return date.split("T")[0];
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    if (picked != null) {
+      setState(() {
+        selectedImage = File(picked.path);
+      });
+
+      await uploadImage(File(picked.path));
+    }
   }
 
-  Future<void> pickProfileImage() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> uploadImage(File file) async {
+    final url = Uri.parse("https://exciting-learning-production-d784.up.railway.app/upload-profile");
 
-    if (file == null) return;
-
-    final request = http.MultipartRequest(
-      "POST",
-      Uri.parse(
-          "https://exciting-learning-production-d784.up.railway.app/upload-profile"),
-    );
-
+    var request = http.MultipartRequest("POST", url);
     request.fields["user_id"] = widget.userId.toString();
-    request.files
-        .add(await http.MultipartFile.fromPath("image", file.path));
+    request.files.add(await http.MultipartFile.fromPath("profile", file.path));
 
-    final response = await request.send();
+    var response = await request.send();
 
     if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Photo mise à jour !")));
+      print("Upload OK");
       loadProfile();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur lors du téléchargement")));
+      print("Erreur upload");
     }
   }
 
@@ -70,34 +67,28 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return Center(child: CircularProgressIndicator());
-    }
+    if (loading) return Center(child: CircularProgressIndicator());
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text("Profil"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: Text("Profil")),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(20),
         child: Column(
           children: [
             GestureDetector(
-              onTap: pickProfileImage,
+              onTap: pickImage,
               child: CircleAvatar(
-                radius: 55,
-                backgroundColor: Colors.teal,
-                backgroundImage: user!["profile"] != null
-                    ? NetworkImage(user!["profile"])
-                    : null,
-                child: user!["profile"] == null
-                    ? Icon(Icons.person, size: 60, color: Colors.white)
-                    : null,
+                radius: 60,
+                backgroundImage: selectedImage != null
+                    ? FileImage(selectedImage!)
+                    : (user!["profile"] != null
+                    ? NetworkImage(
+                    "https://exciting-learning-production-d784.up.railway.app/uploads/${user!["profile"]}")
+                    : AssetImage("assets/default.jpg")) as ImageProvider,
               ),
             ),
-            SizedBox(height: 15),
 
+            SizedBox(height: 10),
             Text(
               user!["username"],
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -105,62 +96,45 @@ class _ProfilePageState extends State<ProfilePage> {
 
             SizedBox(height: 20),
 
-            // Infos utilisateur
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Pays : ${user!['country']}",
-                  style: TextStyle(fontSize: 16)),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Région : ${user!['region']}",
-                  style: TextStyle(fontSize: 16)),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Naissance : ${cleanDate(user!['birthdate'])}",
-                  style: TextStyle(fontSize: 16)),
-            ),
+            infoRow("Pays", user!["country"]),
+            infoRow("Région", user!["region"]),
+            infoRow("Naissance", user!["birthdate"].split("T")[0]),
 
             SizedBox(height: 30),
 
-            // Modifier mot de passe
             ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, "/change-password");
+              },
               icon: Icon(Icons.lock_reset),
               label: Text("Modifier le mot de passe"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                minimumSize: Size(double.infinity, 50),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChangePasswordPage(
-                      userId: widget.userId,
-                    ),
-                  ),
-                );
-              },
             ),
 
             SizedBox(height: 15),
 
-            // Déconnexion
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, "/login");
+              },
               icon: Icon(Icons.logout),
               label: Text("Se déconnecter"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: Size(double.infinity, 50),
-              ),
-              onPressed: () {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, "/login", (route) => false);
-              },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Text("$label : ",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(value, style: TextStyle(fontSize: 16)),
+        ],
       ),
     );
   }
