@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase/firebase_options.dart';   // <-- important
+import 'package:islamicapp/firebase_options.dart';
 import 'pages/login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // INITIALISATION FIREBASE
+  // 🔥 INITIALISATION FIREBASE
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -50,24 +50,6 @@ class IslamicApp extends StatelessWidget {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide(color: Colors.teal, width: 2),
-          ),
-        ),
-
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ButtonStyle(
-            padding: WidgetStateProperty.all(
-              EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-            ),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.hovered)) return Colors.teal.shade600;
-              return Colors.teal.shade700;
-            }),
-            foregroundColor: WidgetStateProperty.all(Colors.white),
           ),
         ),
       ),
