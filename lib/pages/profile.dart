@@ -179,19 +179,45 @@ class _ProfilePageState extends State<ProfilePage> {
             ElevatedButton.icon(
               icon: Icon(Icons.delete_forever),
               label: Text("Supprimer mon compte"),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DeleteAccountPage(userId: widget.userId),
+              onPressed: () async {
+                bool confirm = await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text("Confirmer la suppression"),
+                    content: Text(
+                      "Es-tu sûr de vouloir supprimer ton compte ?\n"
+                          "⚠️ Cette action est irréversible.",
+                    ),
+                    actions: [
+                      TextButton(
+                        child: Text("Annuler"),
+                        onPressed: () => Navigator.pop(context, false),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        child: Text("Supprimer"),
+                        onPressed: () => Navigator.pop(context, true),
+                      ),
+                    ],
                   ),
                 );
+
+                if (confirm == true) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DeleteAccountPage(userId: widget.userId),
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black87,
                 foregroundColor: Colors.white,
                 minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
