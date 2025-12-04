@@ -7,16 +7,35 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { db } from "./db.js";
+import admin from "firebase-admin";
 
 dotenv.config();
+
+/* --------------------------------------------------
+                FIREBASE INITIALISATION
+--------------------------------------------------- */
+
+const serviceAccount = JSON.parse(
+    fs.readFileSync("./firebase_key.json", "utf8")
+);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+const firestore = admin.firestore();
+
+/* --------------------------------------------------
+                EXPRESS INIT
+--------------------------------------------------- */
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ----------------------------------------------
-        UPLOADS FOLDER + MULTER CONFIG
------------------------------------------------- */
+/* --------------------------------------------------
+                UPLOAD CONFIG
+--------------------------------------------------- */
 
 const uploadFolder = "uploads/";
 
@@ -25,20 +44,19 @@ if (!fs.existsSync(uploadFolder)) {
 }
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadFolder),
-    filename: (req, file, cb) => {
+    destination: (_, __, cb) => cb(null, uploadFolder),
+    filename: (_, file, cb) => {
         const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
         cb(null, unique + path.extname(file.originalname));
     },
 });
 
 const upload = multer({ storage });
-
 app.use("/uploads", express.static("uploads"));
 
-/* ----------------------------------------------
+/* --------------------------------------------------
                     REGISTER
------------------------------------------------- */
+--------------------------------------------------- */
 
 app.post("/register", async (req, res) => {
     try {
@@ -52,17 +70,31 @@ app.post("/register", async (req, res) => {
             [username, hash, country, region, birthdate]
         );
 
-        res.json({ status: "ok", userId: result.insertId });
+        const userId = result.insertId.toString();
+
+        // Firestore mirror for chat system
+        await firestore.collection("users").doc(userId).set({
+            uid: userId,
+            username,
+            country,
+            region,
+            birthdate,
+            profile: null,
+            isOnline: false,
+            lastSeen: new Date()
+        });
+
+        res.json({ status: "ok", userId });
 
     } catch (err) {
-        console.error("❌ REGISTER ERROR:", err);
+        console.error("REGISTER ERROR:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-/* ----------------------------------------------
+/* --------------------------------------------------
                      LOGIN
------------------------------------------------- */
+--------------------------------------------------- */
 
 app.post("/login", async (req, res) => {
     try {
@@ -88,6 +120,12 @@ app.post("/login", async (req, res) => {
             { expiresIn: "7d" }
         );
 
+        // Firestore: user becomes online
+        await firestore.collection("users").doc(user.id.toString()).update({
+            isOnline: true,
+            lastSeen: new Date()
+        });
+
         res.json({
             token,
             userId: user.id,
@@ -98,14 +136,34 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
-        console.error("❌ LOGIN ERROR:", err);
+        console.error("LOGIN ERROR:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-/* ----------------------------------------------
-               GET USER PROFILE
------------------------------------------------- */
+/* --------------------------------------------------
+                     LOGOUT
+--------------------------------------------------- */
+
+app.post("/logout", async (req, res) => {
+    try {
+        const { id } = req.body;
+
+        await firestore.collection("users").doc(id.toString()).update({
+            isOnline: false,
+            lastSeen: new Date()
+        });
+
+        res.json({ success: true });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --------------------------------------------------
+                      PROFILE
+--------------------------------------------------- */
 
 app.get("/profile/:id", async (req, res) => {
     try {
@@ -122,61 +180,32 @@ app.get("/profile/:id", async (req, res) => {
         res.json(rows[0]);
 
     } catch (err) {
-        console.error("❌ PROFILE ERROR:", err);
+        console.error("PROFILE ERROR:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-/* ----------------------------------------------
-               CHANGE PASSWORD
------------------------------------------------- */
-
-app.post("/change-password", async (req, res) => {
-    const { user_id, old_password, new_password } = req.body;
-
-    try {
-        const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [user_id]);
-
-        if (rows.length === 0)
-            return res.status(400).json({ error: "Utilisateur introuvable" });
-
-        const user = rows[0];
-
-        const match = await bcrypt.compare(old_password, user.password_hash);
-        if (!match)
-            return res.status(400).json({ error: "Ancien mot de passe incorrect" });
-
-        const newHash = await bcrypt.hash(new_password, 10);
-
-        await db.execute(
-            "UPDATE users SET password_hash = ? WHERE id = ?",
-            [newHash, user_id]
-        );
-
-        res.json({ success: true });
-
-    } catch (err) {
-        console.error("❌ PASSWORD ERROR:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-/* ----------------------------------------------
-               UPLOAD PROFILE PHOTO
------------------------------------------------- */
+/* --------------------------------------------------
+                UPLOAD PROFILE PHOTO
+--------------------------------------------------- */
 
 app.post("/upload-profile", upload.single("profile"), async (req, res) => {
     try {
         const userId = req.body.user_id;
 
-        if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+        if (!req.file)
+            return res.status(400).json({ error: "No file uploaded" });
 
-        const filename = req.file.filename; // <-- ON ENREGISTRE JUSTE ÇA
+        const filename = req.file.filename;
 
         await db.execute(
             "UPDATE users SET profile = ? WHERE id = ?",
             [filename, userId]
         );
+
+        await firestore.collection("users").doc(userId.toString()).update({
+            profile: filename
+        });
 
         res.json({ success: true, file: filename });
 
@@ -186,15 +215,14 @@ app.post("/upload-profile", upload.single("profile"), async (req, res) => {
     }
 });
 
+/* --------------------------------------------------
+                  DELETE ACCOUNT
+--------------------------------------------------- */
 
-/* ----------------------------------------------
-                     SUPRESSION DU COMPTE
------------------------------------------------- */
 app.post("/delete-account", async (req, res) => {
     try {
         const { user_id, password, birthdate } = req.body;
 
-        // Vérifier si l'utilisateur existe
         const [rows] = await db.execute(
             "SELECT * FROM users WHERE id = ?",
             [user_id]
@@ -205,18 +233,19 @@ app.post("/delete-account", async (req, res) => {
 
         const user = rows[0];
 
-        // Vérifier mot de passe
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match)
             return res.status(400).json({ error: "Mot de passe incorrect" });
 
-        // Vérifier date de naissance
         const cleanBirth = user.birthdate.toISOString().split("T")[0];
         if (cleanBirth !== birthdate)
             return res.status(400).json({ error: "Date de naissance incorrecte" });
 
-        // Delete user
+        // Delete from MySQL
         await db.execute("DELETE FROM users WHERE id = ?", [user_id]);
+
+        // Delete from Firestore
+        await firestore.collection("users").doc(user_id.toString()).delete();
 
         res.json({ success: true });
 
@@ -226,19 +255,10 @@ app.post("/delete-account", async (req, res) => {
     }
 });
 
+/* --------------------------------------------------
+              GET USERS (LIST)
+--------------------------------------------------- */
 
-/* ----------------------------------------------
-                     ROOT TEST
------------------------------------------------- */
-
-
-app.get("/", (req, res) => {
-    res.json({ message: "IslamicApp backend is running 🚀" });
-});
-
-
-
-// GET all users except yourself
 app.get("/users/:id", async (req, res) => {
     const myId = req.params.id;
 
@@ -247,32 +267,32 @@ app.get("/users/:id", async (req, res) => {
         [myId]
     );
 
-    rows.forEach(user => {
-        if (user.profile) {
-            user.profile = `https://exciting-learning-production-d784.up.railway.app/uploads/${user.profile}`;
+    rows.forEach(u => {
+        if (u.profile) {
+            u.profile = `https://exciting-learning-production-d784.up.railway.app/uploads/${u.profile}`;
         }
     });
 
     res.json(rows);
 });
 
+/* --------------------------------------------------
+        PRIVATE MESSAGES MYSQL (LIST + SEND)
+--------------------------------------------------- */
 
-
-// Get private messages between 2 users
 app.get("/messages/:u1/:u2", async (req, res) => {
     const { u1, u2 } = req.params;
 
     const [rows] = await db.execute(
         `SELECT * FROM messages_private
          WHERE (sender_id = ? AND receiver_id = ?)
-         OR (sender_id = ? AND receiver_id = ?)
+            OR (sender_id = ? AND receiver_id = ?)
          ORDER BY timestamp ASC`,
         [u1, u2, u2, u1]
     );
 
     res.json(rows);
 });
-
 
 app.post("/messages/send", async (req, res) => {
     const { sender_id, receiver_id, content } = req.body;
@@ -286,12 +306,17 @@ app.post("/messages/send", async (req, res) => {
     res.json({ success: true });
 });
 
+/* --------------------------------------------------
+                     ROOT
+--------------------------------------------------- */
 
-/* ----------------------------------------------
+app.get("/", (_, res) =>
+    res.json({ message: "IslamicApp backend is running 🚀" })
+);
+
+/* --------------------------------------------------
                  START SERVER
------------------------------------------------- */
+--------------------------------------------------- */
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Backend Running on port: ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Backend Running on ${PORT}`));

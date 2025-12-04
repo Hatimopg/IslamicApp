@@ -13,6 +13,14 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController = TextEditingController();
 
+  Future<String> getUsername(int uid) async {
+    final doc =
+    await FirebaseFirestore.instance.collection("users").doc(uid.toString()).get();
+
+    if (doc.exists) return doc["username"] ?? "User";
+    return "User";
+  }
+
   Future<void> sendMessage() async {
     if (messageController.text.trim().isEmpty) return;
 
@@ -28,13 +36,10 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Communauté"),
-      ),
+      appBar: AppBar(title: Text("Communauté")),
 
       body: Column(
         children: [
-          // ----------- LISTE DES MESSAGES EN TEMPS RÉEL -----------
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -54,16 +59,23 @@ class _ChatPageState extends State<ChatPage> {
                   itemBuilder: (context, index) {
                     final msg = messages[index];
                     final text = msg["message"] ?? "";
-                    final sender = msg["sender_id"] ?? "User";
+                    final senderId = msg["sender_id"] ?? 0;
 
-                    return Container(
-                      margin: EdgeInsets.symmetric(vertical: 4),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text("$sender : $text"),
+                    return FutureBuilder(
+                      future: getUsername(senderId),
+                      builder: (context, snap) {
+                        if (!snap.hasData) return SizedBox();
+
+                        return Container(
+                          margin: EdgeInsets.symmetric(vertical: 4),
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text("${snap.data} : $text"),
+                        );
+                      },
                     );
                   },
                 );
@@ -71,7 +83,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          // ----------- BARRE D’ENVOI DU MESSAGE -----------
+          // BARRE D’ENVOI
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             color: Colors.grey.shade200,

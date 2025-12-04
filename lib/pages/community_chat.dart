@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class CommunityChatPage extends StatefulWidget {
+class CommunityChat extends StatefulWidget {
+  final int userId;
+  CommunityChat({required this.userId});
+
   @override
-  _CommunityChatPageState createState() => _CommunityChatPageState();
+  _CommunityChatState createState() => _CommunityChatState();
 }
 
-class _CommunityChatPageState extends State<CommunityChatPage> {
-  TextEditingController msgCtrl = TextEditingController();
+class _CommunityChatState extends State<CommunityChat> {
+  TextEditingController controller = TextEditingController();
 
-  Future<void> sendMessage() async {
-    if (msgCtrl.text.trim().isEmpty) return;
+  void sendMessage() {
+    final text = controller.text.trim();
+    if (text.isEmpty) return;
 
-    FirebaseFirestore.instance.collection("community_chat").add({
-      "userId": "123", // remplacer par vrai user
-      "username": "UserTest",
-      "text": msgCtrl.text.trim(),
+    FirebaseFirestore.instance.collection("community_messages").add({
+      "text": text,
+      "sender": widget.userId,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
-    msgCtrl.clear();
+    controller.clear();
   }
 
   @override
@@ -29,22 +32,22 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
         Expanded(
           child: StreamBuilder(
             stream: FirebaseFirestore.instance
-                .collection("community_chat")
+                .collection("community_messages")
                 .orderBy("timestamp", descending: true)
                 .snapshots(),
+
             builder: (context, snapshot) {
               if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
 
-              final messages = snapshot.data!.docs;
+              final docs = snapshot.data!.docs;
 
               return ListView.builder(
                 reverse: true,
-                itemCount: messages.length,
+                itemCount: docs.length,
                 itemBuilder: (context, i) {
-                  final msg = messages[i];
+                  final msg = docs[i];
                   return ListTile(
-                    title: Text(msg["username"]),
-                    subtitle: Text(msg["text"]),
+                    title: Text("${msg["sender"]} : ${msg["text"]}"),
                   );
                 },
               );
@@ -52,16 +55,16 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
           ),
         ),
 
+        // barre d'envoi
         Padding(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(10),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
-                  controller: msgCtrl,
+                  controller: controller,
                   decoration: InputDecoration(
                     hintText: "Écrire un message...",
-                    border: OutlineInputBorder(),
                   ),
                 ),
               ),
