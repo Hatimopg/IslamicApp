@@ -236,6 +236,57 @@ app.get("/", (req, res) => {
     res.json({ message: "IslamicApp backend is running 🚀" });
 });
 
+
+
+// GET all users except yourself
+app.get("/users/:id", async (req, res) => {
+    const myId = req.params.id;
+
+    const [rows] = await db.execute(
+        "SELECT id, username, profile FROM users WHERE id != ? ORDER BY username ASC",
+        [myId]
+    );
+
+    rows.forEach(user => {
+        if (user.profile) {
+            user.profile = `https://exciting-learning-production-d784.up.railway.app/uploads/${user.profile}`;
+        }
+    });
+
+    res.json(rows);
+});
+
+
+
+// Get private messages between 2 users
+app.get("/messages/:u1/:u2", async (req, res) => {
+    const { u1, u2 } = req.params;
+
+    const [rows] = await db.execute(
+        `SELECT * FROM messages_private
+         WHERE (sender_id = ? AND receiver_id = ?)
+         OR (sender_id = ? AND receiver_id = ?)
+         ORDER BY timestamp ASC`,
+        [u1, u2, u2, u1]
+    );
+
+    res.json(rows);
+});
+
+
+app.post("/messages/send", async (req, res) => {
+    const { sender_id, receiver_id, content } = req.body;
+
+    await db.execute(
+        `INSERT INTO messages_private (sender_id, receiver_id, content)
+         VALUES (?, ?, ?)`,
+        [sender_id, receiver_id, content]
+    );
+
+    res.json({ success: true });
+});
+
+
 /* ----------------------------------------------
                  START SERVER
 ------------------------------------------------ */
