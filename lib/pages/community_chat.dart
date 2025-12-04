@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ChatCommunityPage extends StatefulWidget {
+class CommunityChatPage extends StatefulWidget {
   final int userId;
   final String username;
   final String profile;
 
-  ChatCommunityPage({
+  CommunityChatPage({
     required this.userId,
     required this.username,
     required this.profile,
   });
 
   @override
-  _ChatCommunityPageState createState() => _ChatCommunityPageState();
+  _CommunityChatPageState createState() => _CommunityChatPageState();
 }
 
-class _ChatCommunityPageState extends State<ChatCommunityPage> {
-  final TextEditingController msg = TextEditingController();
+class _CommunityChatPageState extends State<CommunityChatPage> {
+  TextEditingController msgCtrl = TextEditingController();
 
-  void send() {
-    if (msg.text.trim().isEmpty) return;
+  void sendMessage() {
+    if (msgCtrl.text.trim().isEmpty) return;
 
     FirebaseFirestore.instance.collection("community_messages").add({
-      "message": msg.text,
+      "message": msgCtrl.text.trim(),
       "sender_id": widget.userId,
       "username": widget.username,
-      "profile": widget.profile,
+      "profile": widget.profile, // <-- ok même si null
       "timestamp": FieldValue.serverTimestamp(),
     });
 
-    msg.clear();
+    msgCtrl.clear();
   }
 
   @override
@@ -51,34 +51,41 @@ class _ChatCommunityPageState extends State<ChatCommunityPage> {
 
                 final docs = snapshot.data!.docs;
 
-                return ListView(
-                  children: docs.map((d) {
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    final m = docs[i].data() as Map<String, dynamic>;
+
+                    final username = m["username"] ?? "Utilisateur";
+                    final message = m["message"] ?? "";
+                    final profile = m["profile"]; // peut être null
+
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: (d["profile"] != null &&
-                            d["profile"].toString().isNotEmpty)
-                            ? NetworkImage(d["profile"])
-                            : AssetImage("assets/default.jpg") as ImageProvider,
+                        backgroundImage: profile != null
+                            ? NetworkImage(profile)
+                            : AssetImage("assets/default.jpg")
+                        as ImageProvider,
                       ),
-                      title: Text(d["username"] ?? "User"),
-                      subtitle: Text(d["message"]),
+                      title: Text(username),
+                      subtitle: Text(message),
                       tileColor: Colors.teal.shade50,
                     );
-                  }).toList(),
+                  },
                 );
               },
             ),
           ),
 
-          // Zone d'envoi
-          Padding(
-            padding: EdgeInsets.all(10),
+          // INPUT MESSAGE
+          Container(
+            padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                Expanded(child: TextField(controller: msg)),
+                Expanded(child: TextField(controller: msgCtrl)),
                 IconButton(
                   icon: Icon(Icons.send, color: Colors.teal),
-                  onPressed: send,
+                  onPressed: sendMessage,
                 )
               ],
             ),

@@ -24,13 +24,16 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      Center(child: Text("Accueil")),
-      ChatCommunityPage(
+      const Center(child: Text("Accueil")),
+
+      CommunityChatPage(
         userId: widget.userId,
         username: widget.username,
         profile: widget.profile,
       ),
+
       PrivateUsersPage(myId: widget.userId),
+
       ProfilePage(userId: widget.userId),
     ];
 

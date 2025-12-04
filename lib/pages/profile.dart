@@ -5,7 +5,7 @@ import 'change_password.dart';
 import 'login.dart';
 import 'delete_account.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart'; // kIsWeb
+import 'package:flutter/foundation.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -46,7 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // =====================================================
-  // UPLOAD PHOTO (WEB + MOBILE COMPATIBLE)
+  // UPLOAD PHOTO
   // =====================================================
   Future<void> pickImageAndUpload() async {
     final picker = ImagePicker();
@@ -78,7 +78,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text("Photo mise à jour !")));
-
       loadProfile();
     } else {
       ScaffoldMessenger.of(context)
@@ -87,30 +86,21 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // =====================================================
-  // PHOTO + BOUTON CAMERA
+  // LOGOUT → Firestore isOnline = false
   // =====================================================
-  Widget buildProfilePicture() {
-    final hasPic = user!["profile"] != null && user!["profile"] != "";
-    final img = hasPic
-        ? NetworkImage("$baseUrl/uploads/${user!["profile"]}")
-        : const AssetImage("assets/default.jpg") as ImageProvider;
+  Future<void> logout() async {
+    try {
+      await http.post(
+        Uri.parse("$baseUrl/logout"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id": widget.userId}),
+      );
+    } catch (e) {}
 
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        CircleAvatar(radius: 60, backgroundImage: img),
-        GestureDetector(
-          onTap: pickImageAndUpload,
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
-          ),
-        )
-      ],
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => LoginPage()),
+          (route) => false,
     );
   }
 
@@ -124,15 +114,37 @@ class _ProfilePageState extends State<ProfilePage> {
 
     String birth = user!["birthdate"].toString().split("T")[0];
 
+    final hasPic = user!["profile"] != null && user!["profile"] != "";
+    final img = hasPic
+        ? NetworkImage("$baseUrl/uploads/${user!["profile"]}")
+        : const AssetImage("assets/default.jpg") as ImageProvider;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Profil")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            buildProfilePicture(),
-            const SizedBox(height: 20),
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                CircleAvatar(radius: 60, backgroundImage: img),
+                GestureDetector(
+                  onTap: pickImageAndUpload,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.teal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt,
+                        color: Colors.white, size: 22),
+                  ),
+                )
+              ],
+            ),
 
+            const SizedBox(height: 20),
             Text(
               user!["username"],
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -162,23 +174,17 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 20),
 
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginPage()),
-                      (route) => false,
-                );
-              },
+              onPressed: logout,
               icon: const Icon(Icons.logout),
               label: const Text("Se déconnecter"),
               style: btnStyle(Colors.red),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             ElevatedButton.icon(
-              icon: Icon(Icons.delete_forever),
-              label: Text("Supprimer mon compte"),
+              icon: const Icon(Icons.delete_forever),
+              label: const Text("Supprimer mon compte"),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -190,8 +196,9 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black87,
                 foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -200,7 +207,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // petite fonction propre pour les infos
   Widget infoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -214,7 +220,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // style de bouton propre
   ButtonStyle btnStyle(Color color) {
     return ElevatedButton.styleFrom(
       backgroundColor: color,
