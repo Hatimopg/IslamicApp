@@ -18,7 +18,7 @@ class _HomeState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pages = [
       Center(child: Text("Accueil")),
-      ChatPage(),
+      ChatPage(userId: widget.userId),   // <-- IMPORTANT
       ProfilePage(userId: widget.userId),
     ];
 
