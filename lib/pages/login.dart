@@ -37,7 +37,13 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => HomePage(userId: data["userId"]),
+              builder: (_) => HomePage(
+                userId: data["userId"],
+                username: data["username"],
+                profile: data["profile"] != null
+                    ? "https://exciting-learning-production-d784.up.railway.app/uploads/${data["profile"]}"
+                    : "",
+              ),
             ),
           );
         } else {

@@ -287,6 +287,28 @@ app.get("/users-full/:id", async (req, res) => {
 });
 
 /* ============================================================
+                        fix le user pr firebase
+=============================================================== */
+app.get("/fix-users", async (req, res) => {
+    const [rows] = await db.execute("SELECT * FROM users");
+
+    for (let u of rows) {
+        await firestore.collection("users").doc(u.id.toString()).set({
+            uid: u.id.toString(),
+            username: u.username,
+            profile: u.profile ?? null,
+            country: u.country,
+            region: u.region,
+            birthdate: u.birthdate,
+            isOnline: false,
+            lastSeen: new Date()
+        }, { merge: true });
+    }
+
+    res.json({ status: "ok", fixed: rows.length });
+});
+
+/* ============================================================
                         ROOT
 =============================================================== */
 
