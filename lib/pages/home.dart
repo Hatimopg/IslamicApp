@@ -1,24 +1,36 @@
 import 'package:flutter/material.dart';
-import 'chat.dart';
+import 'community_chat.dart';
 import 'profile.dart';
+import 'private_users.dart';
 
 class HomePage extends StatefulWidget {
   final int userId;
+  final String username;
+  final String profile;
 
-  HomePage({required this.userId});
+  HomePage({
+    required this.userId,
+    required this.username,
+    required this.profile,
+  });
 
   @override
-  _HomeState createState() => _HomeState();
+  _HomePageState createState() => _HomePageState();
 }
 
-class _HomeState extends State<HomePage> {
+class _HomePageState extends State<HomePage> {
   int index = 0;
 
   @override
   Widget build(BuildContext context) {
     final pages = [
       Center(child: Text("Accueil")),
-      ChatPage(userId: widget.userId),   // <-- IMPORTANT
+      ChatCommunityPage(
+        userId: widget.userId,
+        username: widget.username,
+        profile: widget.profile,
+      ),
+      PrivateUsersPage(myId: widget.userId),
       ProfilePage(userId: widget.userId),
     ];
 
@@ -29,21 +41,10 @@ class _HomeState extends State<HomePage> {
         onDestinationSelected: (i) => setState(() => index = i),
         indicatorColor: Colors.teal.shade100,
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Chat',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
+          NavigationDestination(icon: Icon(Icons.home), label: "Accueil"),
+          NavigationDestination(icon: Icon(Icons.group), label: "Communauté"),
+          NavigationDestination(icon: Icon(Icons.chat), label: "Privé"),
+          NavigationDestination(icon: Icon(Icons.person), label: "Profil"),
         ],
       ),
     );

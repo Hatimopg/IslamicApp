@@ -5,11 +5,13 @@ class PrivateChatPage extends StatefulWidget {
   final int currentId;
   final int otherId;
   final String otherName;
+  final String otherProfile;
 
   PrivateChatPage({
     required this.currentId,
     required this.otherId,
     required this.otherName,
+    required this.otherProfile,
   });
 
   @override
@@ -17,7 +19,7 @@ class PrivateChatPage extends StatefulWidget {
 }
 
 class _PrivateChatPageState extends State<PrivateChatPage> {
-  TextEditingController controller = TextEditingController();
+  TextEditingController msg = TextEditingController();
 
   String get chatId {
     final ids = [widget.currentId, widget.otherId];
@@ -25,9 +27,8 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return "${ids[0]}_${ids[1]}";
   }
 
-  void sendMessage() {
-    final text = controller.text.trim();
-    if (text.isEmpty) return;
+  void send() {
+    if (msg.text.trim().isEmpty) return;
 
     FirebaseFirestore.instance
         .collection("private_chats")
@@ -36,18 +37,26 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
         .add({
       "from": widget.currentId,
       "to": widget.otherId,
-      "text": text,
+      "text": msg.text,
       "timestamp": FieldValue.serverTimestamp(),
       "seen": false,
     });
 
-    controller.clear();
+    msg.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.otherName)),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CircleAvatar(backgroundImage: NetworkImage(widget.otherProfile)),
+            SizedBox(width: 10),
+            Text(widget.otherName),
+          ],
+        ),
+      ),
 
       body: Column(
         children: [
@@ -59,32 +68,29 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   .collection("messages")
                   .orderBy("timestamp", descending: true)
                   .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return Center(child: CircularProgressIndicator());
+              builder: (context, snap) {
+                if (!snap.hasData) return Center(child: CircularProgressIndicator());
 
-                final docs = snapshot.data!.docs;
+                final docs = snap.data!.docs;
 
                 return ListView.builder(
                   reverse: true,
                   itemCount: docs.length,
-                  itemBuilder: (context, i) {
-                    final msg = docs[i];
-                    final isMe = msg['from'] == widget.currentId;
+                  itemBuilder: (_, i) {
+                    final m = docs[i];
+                    final bool isMe = m["from"] == widget.currentId;
 
                     return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        padding: EdgeInsets.all(12),
-                        margin: EdgeInsets.all(6),
+                        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.teal : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          msg['text'],
+                          m["text"],
                           style: TextStyle(
                             color: isMe ? Colors.white : Colors.black,
                           ),
@@ -97,23 +103,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             ),
           ),
 
-          // INPUT
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    hintText: "Écrire un message...",
-                  ),
-                ),
-              ),
+              Expanded(child: TextField(controller: msg)),
               IconButton(
                 icon: Icon(Icons.send, color: Colors.teal),
-                onPressed: sendMessage,
+                onPressed: send,
               ),
             ],
-          )
+          ),
         ],
       ),
     );

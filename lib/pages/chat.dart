@@ -6,6 +6,10 @@ class ChatPage extends StatefulWidget {
 
   ChatPage({required this.userId});
 
+  get username => null;
+
+  get profileUrl => null;
+
   @override
   _ChatPageState createState() => _ChatPageState();
 }
@@ -27,11 +31,14 @@ class _ChatPageState extends State<ChatPage> {
     await FirebaseFirestore.instance.collection("community_messages").add({
       "message": messageController.text.trim(),
       "sender_id": widget.userId,
+      "username": widget.username,      // <-- NEW
+      "profile": widget.profileUrl,     // <-- NEW
       "timestamp": FieldValue.serverTimestamp(),
     });
 
     messageController.clear();
   }
+
 
   @override
   Widget build(BuildContext context) {
