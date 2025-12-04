@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'change_password.dart';
 import 'login.dart';
+import 'delete_account.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb
 
@@ -171,6 +172,27 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: const Icon(Icons.logout),
               label: const Text("Se déconnecter"),
               style: btnStyle(Colors.red),
+            ),
+
+            SizedBox(height: 20),
+
+            ElevatedButton.icon(
+              icon: Icon(Icons.delete_forever),
+              label: Text("Supprimer mon compte"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DeleteAccountPage(userId: widget.userId),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black87,
+                foregroundColor: Colors.white,
+                minimumSize: Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),

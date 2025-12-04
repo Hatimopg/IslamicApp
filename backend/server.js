@@ -188,8 +188,49 @@ app.post("/upload-profile", upload.single("profile"), async (req, res) => {
 
 
 /* ----------------------------------------------
+                     SUPRESSION DU COMPTE
+------------------------------------------------ */
+app.post("/delete-account", async (req, res) => {
+    try {
+        const { user_id, password, birthdate } = req.body;
+
+        // Vérifier si l'utilisateur existe
+        const [rows] = await db.execute(
+            "SELECT * FROM users WHERE id = ?",
+            [user_id]
+        );
+
+        if (rows.length === 0)
+            return res.status(400).json({ error: "Utilisateur introuvable" });
+
+        const user = rows[0];
+
+        // Vérifier mot de passe
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match)
+            return res.status(400).json({ error: "Mot de passe incorrect" });
+
+        // Vérifier date de naissance
+        const cleanBirth = user.birthdate.toISOString().split("T")[0];
+        if (cleanBirth !== birthdate)
+            return res.status(400).json({ error: "Date de naissance incorrecte" });
+
+        // Delete user
+        await db.execute("DELETE FROM users WHERE id = ?", [user_id]);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error("DELETE ERROR:", err);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
+});
+
+
+/* ----------------------------------------------
                      ROOT TEST
 ------------------------------------------------ */
+
 
 app.get("/", (req, res) => {
     res.json({ message: "IslamicApp backend is running 🚀" });
