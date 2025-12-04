@@ -179,78 +179,13 @@ class _ProfilePageState extends State<ProfilePage> {
             ElevatedButton.icon(
               icon: Icon(Icons.delete_forever),
               label: Text("Supprimer mon compte"),
-              onPressed: () async {
-                TextEditingController confirmCtrl = TextEditingController();
-
-                bool confirm = await showDialog(
-                  context: context,
-                  barrierDismissible: false, // impossible de fermer en cliquant dehors
-                  builder: (context) => StatefulBuilder(
-                    builder: (context, setStateDialog) {
-                      return AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: Text(
-                          "Confirmer la suppression",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
-                        ),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "⚠️ Action irréversible !\n\n"
-                                  "Pour supprimer ton compte, écris exactement :",
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "SUPPRIMER",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                  fontSize: 18),
-                            ),
-                            const SizedBox(height: 12),
-
-                            TextField(
-                              controller: confirmCtrl,
-                              decoration: InputDecoration(
-                                labelText: "Tape SUPPRIMER",
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            child: Text("Annuler"),
-                            onPressed: () => Navigator.pop(context, false),
-                          ),
-
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text("Confirmer"),
-                            onPressed: () {
-                              if (confirmCtrl.text.trim().toUpperCase() == "SUPPRIMER") {
-                                Navigator.pop(context, true);
-                              }
-                            },
-                          ),
-                        ],
-                      );
-                    },
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DeleteAccountPage(userId: widget.userId),
                   ),
                 );
-
-                if (confirm == true) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DeleteAccountPage(userId: widget.userId),
-                    ),
-                  );
-                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black87,
