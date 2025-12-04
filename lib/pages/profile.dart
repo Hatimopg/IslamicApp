@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'change_password.dart';
 import 'login.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -39,15 +42,103 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfile();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return Center(child: CircularProgressIndicator());
+  // ---------------------------------------------------------------------
+  // UPLOAD PHOTO DE PROFIL
+  // ---------------------------------------------------------------------
+  Future<void> pickImageAndUpload() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    final uri = Uri.parse(
+        "https://exciting-learning-production-d784.up.railway.app/upload-profile");
+
+    var request = http.MultipartRequest("POST", uri);
+    request.fields["user_id"] = widget.userId.toString();
+
+    // --------------------------------------------------
+    // WEB UPLOAD
+    // --------------------------------------------------
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "profile",
+          bytes,
+          filename: image.name,
+        ),
+      );
+    }
+    // --------------------------------------------------
+    // MOBILE UPLOAD (Android / iOS)
+    // --------------------------------------------------
+    else {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "profile",
+          image.path,
+        ),
+      );
     }
 
-    if (user == null) {
-      return Center(child: Text("Erreur chargement profil"));
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Photo de profil mise à jour !")),
+      );
+      loadProfile(); // recharge le profil
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur lors de l'upload")),
+      );
     }
+  }
+
+
+  // ---------------------------------------------------------------------
+  // WIDGET PHOTO DE PROFIL + ICON CAMÉRA
+  // ---------------------------------------------------------------------
+  Widget buildProfilePicture() {
+    final bool hasPicture =
+        user!["profile"] != null && user!["profile"].toString().isNotEmpty;
+
+    final imageUrl = hasPicture
+        ? "https://exciting-learning-production-d784.up.railway.app/uploads/${user!["profile"]}"
+        : "assets/default.jpg";
+
+    return Stack(
+      alignment: Alignment.bottomRight,
+      children: [
+        CircleAvatar(
+          radius: 60,
+          backgroundImage: hasPicture
+              ? NetworkImage(imageUrl)
+              : AssetImage("assets/default.jpg") as ImageProvider,
+        ),
+        GestureDetector(
+          onTap: pickImageAndUpload,
+          child: Container(
+            padding: EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.teal,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.camera_alt, color: Colors.white, size: 22),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return Center(child: CircularProgressIndicator());
+    if (user == null) return Center(child: Text("Erreur chargement profil"));
 
     String cleanDate = user!["birthdate"].toString().split("T")[0];
 
@@ -57,17 +148,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: () {
-                // PLUS TARD : ouvrir la galerie
-              },
-              child: CircleAvatar(
-                radius: 55,
-                backgroundImage: user!["profile"] != null
-                    ? NetworkImage(user!["profile"])
-                    : AssetImage("assets/default.jpg") as ImageProvider,
-              ),
-            ),
+            buildProfilePicture(),
 
             SizedBox(height: 20),
             Text(
