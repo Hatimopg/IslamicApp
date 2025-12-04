@@ -169,24 +169,23 @@ app.post("/upload-profile", upload.single("profile"), async (req, res) => {
     try {
         const userId = req.body.user_id;
 
-        if (!req.file)
-            return res.status(400).json({ error: "Aucune image reçue" });
+        if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-        const imageUrl =
-            `https://exciting-learning-production-d784.up.railway.app/uploads/${req.file.filename}`;
+        const filename = req.file.filename; // <-- ON ENREGISTRE JUSTE ÇA
 
         await db.execute(
             "UPDATE users SET profile = ? WHERE id = ?",
-            [imageUrl, userId]
+            [filename, userId]
         );
 
-        res.json({ success: true, profile: imageUrl });
+        res.json({ success: true, file: filename });
 
     } catch (err) {
-        console.error("❌ UPLOAD ERROR:", err);
+        console.error("UPLOAD ERROR:", err);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 /* ----------------------------------------------
                      ROOT TEST
