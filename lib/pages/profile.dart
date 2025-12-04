@@ -4,13 +4,11 @@ import 'dart:convert';
 import 'change_password.dart';
 import 'login.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb
 
 class ProfilePage extends StatefulWidget {
   final int userId;
-
-  ProfilePage({required this.userId});
+  const ProfilePage({required this.userId});
 
   @override
   _ProfilePageState createState() => _ProfilePageState();
@@ -20,10 +18,20 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? user;
   bool loading = true;
 
-  Future<void> loadProfile() async {
-    final url = Uri.parse(
-        "https://exciting-learning-production-d784.up.railway.app/profile/${widget.userId}");
+  final String baseUrl =
+      "https://exciting-learning-production-d784.up.railway.app";
 
+  @override
+  void initState() {
+    super.initState();
+    loadProfile();
+  }
+
+  // =====================================================
+  // CHARGER LE PROFIL
+  // =====================================================
+  Future<void> loadProfile() async {
+    final url = Uri.parse("$baseUrl/profile/${widget.userId}");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -36,176 +44,123 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    loadProfile();
-  }
-
-  // ---------------------------------------------------------------------
-  // UPLOAD PHOTO DE PROFIL
-  // ---------------------------------------------------------------------
+  // =====================================================
+  // UPLOAD PHOTO (WEB + MOBILE COMPATIBLE)
+  // =====================================================
   Future<void> pickImageAndUpload() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
-
     if (image == null) return;
 
-    final uri = Uri.parse(
-        "https://exciting-learning-production-d784.up.railway.app/upload-profile");
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("$baseUrl/upload-profile"),
+    );
 
-    var request = http.MultipartRequest("POST", uri);
     request.fields["user_id"] = widget.userId.toString();
 
-    // --------------------------------------------------
-    // WEB UPLOAD
-    // --------------------------------------------------
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-
+      request.files.add(http.MultipartFile.fromBytes(
+        "profile",
+        bytes,
+        filename: image.name,
+      ));
+    } else {
       request.files.add(
-        http.MultipartFile.fromBytes(
-          "profile",
-          bytes,
-          filename: image.name,
-        ),
-      );
-    }
-    // --------------------------------------------------
-    // MOBILE UPLOAD (Android / iOS)
-    // --------------------------------------------------
-    else {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          "profile",
-          image.path,
-        ),
+        await http.MultipartFile.fromPath("profile", image.path),
       );
     }
 
     final response = await request.send();
 
     if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Photo de profil mise à jour !")),
-      );
-      loadProfile(); // recharge le profil
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Photo mise à jour !")));
+
+      loadProfile();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur lors de l'upload")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Erreur upload")));
     }
   }
 
-
-  // ---------------------------------------------------------------------
-  // WIDGET PHOTO DE PROFIL + ICON CAMÉRA
-  // ---------------------------------------------------------------------
+  // =====================================================
+  // PHOTO + BOUTON CAMERA
+  // =====================================================
   Widget buildProfilePicture() {
-    final bool hasPicture =
-        user!["profile"] != null && user!["profile"].toString().isNotEmpty;
-
-    final imageUrl = hasPicture
-        ? "https://exciting-learning-production-d784.up.railway.app/uploads/${user!["profile"]}"
-        : "assets/default.jpg";
+    final hasPic = user!["profile"] != null && user!["profile"] != "";
+    final img = hasPic
+        ? NetworkImage("$baseUrl/uploads/${user!["profile"]}")
+        : const AssetImage("assets/default.jpg") as ImageProvider;
 
     return Stack(
       alignment: Alignment.bottomRight,
       children: [
-        CircleAvatar(
-          radius: 60,
-          backgroundImage: hasPicture
-              ? NetworkImage(imageUrl)
-              : AssetImage("assets/default.jpg") as ImageProvider,
-        ),
+        CircleAvatar(radius: 60, backgroundImage: img),
         GestureDetector(
           onTap: pickImageAndUpload,
           child: Container(
-            padding: EdgeInsets.all(6),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(
               color: Colors.teal,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.camera_alt, color: Colors.white, size: 22),
+            child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
           ),
-        ),
+        )
       ],
     );
   }
 
-  // ---------------------------------------------------------------------
-
+  // =====================================================
+  // UI
+  // =====================================================
   @override
   Widget build(BuildContext context) {
-    if (loading) return Center(child: CircularProgressIndicator());
-    if (user == null) return Center(child: Text("Erreur chargement profil"));
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (user == null) return const Center(child: Text("Erreur chargement profil"));
 
-    String cleanDate = user!["birthdate"].toString().split("T")[0];
+    String birth = user!["birthdate"].toString().split("T")[0];
 
     return Scaffold(
-      appBar: AppBar(title: Text("Profil")),
+      appBar: AppBar(title: const Text("Profil")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             buildProfilePicture(),
+            const SizedBox(height: 20),
 
-            SizedBox(height: 20),
             Text(
               user!["username"],
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 25),
 
-            Row(
-              children: [
-                Text("Pays : ", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(user!["country"]),
-              ],
-            ),
-            Row(
-              children: [
-                Text("Région : ",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(user!["region"]),
-              ],
-            ),
-            Row(
-              children: [
-                Text("Naissance : ",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(cleanDate),
-              ],
-            ),
+            infoRow("Pays", user!["country"]),
+            infoRow("Région", user!["region"]),
+            infoRow("Naissance", birth),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 35),
 
             ElevatedButton.icon(
-              icon: Icon(Icons.lock_reset),
-              label: Text("Modifier le mot de passe"),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ChangePasswordPage(userId: widget.userId),
-                  ),
+                      builder: (_) => ChangePasswordPage(userId: widget.userId)),
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
+              icon: const Icon(Icons.lock_reset),
+              label: const Text("Modifier le mot de passe"),
+              style: btnStyle(Colors.teal),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             ElevatedButton.icon(
-              icon: Icon(Icons.logout),
-              label: Text("Se déconnecter"),
               onPressed: () {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -213,17 +168,37 @@ class _ProfilePageState extends State<ProfilePage> {
                       (route) => false,
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
+              icon: const Icon(Icons.logout),
+              label: const Text("Se déconnecter"),
+              style: btnStyle(Colors.red),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // petite fonction propre pour les infos
+  Widget infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text("$label : ",
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+
+  // style de bouton propre
+  ButtonStyle btnStyle(Color color) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      minimumSize: const Size(double.infinity, 50),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }
