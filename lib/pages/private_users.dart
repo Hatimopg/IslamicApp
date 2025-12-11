@@ -15,39 +15,55 @@ class PrivateUsersPage extends StatelessWidget {
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection("users").snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return Center(child: CircularProgressIndicator());
+        }
 
         final docs = snapshot.data!.docs
             .where((u) => u["uid"] != myId.toString())
             .toList();
 
-        // Trier online
-        docs.sort((a, b) =>
-            (b["isOnline"] == true ? 1 : 0).compareTo(a["isOnline"] == true ? 1 : 0));
+        // ---- FIX 1 : convertir en vrai bool ----
+        docs.sort((a, b) {
+          final bool aOnline = a["isOnline"] == true;
+          final bool bOnline = b["isOnline"] == true;
+          return (bOnline ? 1 : 0).compareTo(aOnline ? 1 : 0);
+        });
 
         return ListView.builder(
           itemCount: docs.length,
           itemBuilder: (context, i) {
             final u = docs[i];
 
-            final profile = (u["profile"] != null && u["profile"] != "")
-                ? baseUrl + u["profile"]
-                : "";
+            // ---- FIX 2 : PHOTO PROPRE ----
+            final rawProfile = u["profile"];
+
+            final String? profileUrl =
+            (rawProfile != null &&
+                rawProfile is String &&
+                rawProfile.isNotEmpty &&
+                (rawProfile.contains(".jpg") ||
+                    rawProfile.contains(".png")))
+                ? baseUrl + rawProfile
+                : null;
+
+            // ---- FIX 3 : online clean ----
+            final bool isOnline = u["isOnline"] == true;
 
             return ListTile(
               leading: CircleAvatar(
-                backgroundImage: profile != ""
-                    ? NetworkImage(profile)
-                    : AssetImage("assets/default.jpg") as ImageProvider,
+                backgroundImage: profileUrl != null
+                    ? NetworkImage(profileUrl)
+                    : const AssetImage("assets/default.jpg"),
               ),
               title: Text(u["username"] ?? "Utilisateur"),
-              subtitle: Text(u["isOnline"] == true ? "En ligne 🔥" : "Hors ligne"),
+              subtitle: Text(isOnline ? "En ligne 🔥" : "Hors ligne"),
               trailing: Icon(
                 Icons.circle,
-                color: u["isOnline"] == true ? Colors.green : Colors.grey,
+                color: isOnline ? Colors.green : Colors.grey,
                 size: 12,
               ),
+
               onTap: () {
                 Navigator.push(
                   context,
@@ -55,8 +71,8 @@ class PrivateUsersPage extends StatelessWidget {
                     builder: (_) => PrivateChatPage(
                       currentId: myId,
                       otherId: int.parse(u["uid"]),
-                      otherName: u["username"] ?? "Utilisateur",
-                      otherProfile: profile,
+                      otherName: u["username"] ?? "Inconnu",
+                      otherProfile: profileUrl,
                     ),
                   ),
                 );

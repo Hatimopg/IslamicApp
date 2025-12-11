@@ -5,7 +5,7 @@ class PrivateChatPage extends StatefulWidget {
   final int currentId;
   final int otherId;
   final String otherName;
-  final String otherProfile;
+  final String? otherProfile;
 
   PrivateChatPage({
     required this.currentId,
@@ -22,8 +22,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   TextEditingController msg = TextEditingController();
 
   String get chatId {
-    final ids = [widget.currentId, widget.otherId];
-    ids.sort();
+    final ids = [widget.currentId, widget.otherId]..sort();
     return "${ids[0]}_${ids[1]}";
   }
 
@@ -47,11 +46,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final profileImage = widget.otherProfile != null
+        ? NetworkImage(widget.otherProfile!)
+        : const AssetImage("assets/default.jpg") as ImageProvider;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(backgroundImage: NetworkImage(widget.otherProfile)),
+            CircleAvatar(backgroundImage: profileImage),
             SizedBox(width: 10),
             Text(widget.otherName),
           ],
@@ -69,7 +72,8 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   .orderBy("timestamp", descending: true)
                   .snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData) return Center(child: CircularProgressIndicator());
+                if (!snap.hasData)
+                  return Center(child: CircularProgressIndicator());
 
                 final docs = snap.data!.docs;
 
@@ -81,9 +85,11 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                     final bool isMe = m["from"] == widget.currentId;
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        margin:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.teal : Colors.grey.shade300,
