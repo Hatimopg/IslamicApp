@@ -26,7 +26,7 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
       "message": msgCtrl.text.trim(),
       "sender_id": widget.userId,
       "username": widget.username,
-      "profile": widget.profile, // <-- ok même si null
+      "profile": widget.profile,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
@@ -58,11 +58,11 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
                     final username = m["username"] ?? "Utilisateur";
                     final message = m["message"] ?? "";
-                    final profile = m["profile"]; // peut être null
+                    final profile = m["profile"];
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: profile != null
+                        backgroundImage: (profile != null && profile != "")
                             ? NetworkImage(profile)
                             : AssetImage("assets/default.jpg")
                         as ImageProvider,

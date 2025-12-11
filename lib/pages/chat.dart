@@ -3,12 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatPage extends StatefulWidget {
   final int userId;
+  final String username;
+  final String profileUrl;
 
-  ChatPage({required this.userId});
-
-  get username => null;
-
-  get profileUrl => null;
+  ChatPage({
+    required this.userId,
+    required this.username,
+    required this.profileUrl,
+  });
 
   @override
   _ChatPageState createState() => _ChatPageState();
@@ -18,11 +20,15 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController = TextEditingController();
 
   Future<String> getUsername(int uid) async {
-    final doc =
-    await FirebaseFirestore.instance.collection("users").doc(uid.toString()).get();
+    final doc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(uid.toString())
+        .get();
 
-    if (doc.exists) return doc["username"] ?? "User";
-    return "User";
+    if (doc.exists && doc.data() != null) {
+      return doc["username"] ?? "Utilisateur";
+    }
+    return "Utilisateur";
   }
 
   Future<void> sendMessage() async {
@@ -31,20 +37,18 @@ class _ChatPageState extends State<ChatPage> {
     await FirebaseFirestore.instance.collection("community_messages").add({
       "message": messageController.text.trim(),
       "sender_id": widget.userId,
-      "username": widget.username,      // <-- NEW
-      "profile": widget.profileUrl,     // <-- NEW
+      "username": widget.username,
+      "profile": widget.profileUrl,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
     messageController.clear();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Communauté")),
-
       body: Column(
         children: [
           Expanded(
@@ -65,24 +69,29 @@ class _ChatPageState extends State<ChatPage> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
-                    final text = msg["message"] ?? "";
-                    final senderId = msg["sender_id"] ?? 0;
+                    final data = msg.data() as Map<String, dynamic>;
 
-                    return FutureBuilder(
-                      future: getUsername(senderId),
-                      builder: (context, snap) {
-                        if (!snap.hasData) return SizedBox();
+                    final text = data["message"] ?? "";
+                    final username = data["username"] ?? "Utilisateur";
+                    final profile = data["profile"];
+                    final senderId = data["sender_id"] ?? 0;
 
-                        return Container(
-                          margin: EdgeInsets.symmetric(vertical: 4),
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text("${snap.data} : $text"),
-                        );
-                      },
+                    return Container(
+                      margin: EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: (profile != null && profile != "")
+                              ? NetworkImage(profile)
+                              : AssetImage("assets/default.jpg")
+                          as ImageProvider,
+                        ),
+                        title: Text(username),
+                        subtitle: Text(text),
+                        tileColor: Colors.teal.shade50,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     );
                   },
                 );
@@ -90,7 +99,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          // BARRE D’ENVOI
+          // INPUT
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             color: Colors.grey.shade200,
@@ -101,11 +110,11 @@ class _ChatPageState extends State<ChatPage> {
                     controller: messageController,
                     decoration: InputDecoration(
                       hintText: "Écrire un message...",
+                      filled: true,
+                      fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                   ),
                 ),

@@ -7,6 +7,9 @@ class PrivateUsersPage extends StatelessWidget {
 
   PrivateUsersPage({required this.myId});
 
+  final String baseUrl =
+      "https://exciting-learning-production-d784.up.railway.app/";
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -19,26 +22,32 @@ class PrivateUsersPage extends StatelessWidget {
             .where((u) => u["uid"] != myId.toString())
             .toList();
 
-        // tri online / offline
+        // Trier online
         docs.sort((a, b) =>
-            (b["isOnline"] ? 1 : 0).compareTo(a["isOnline"] ? 1 : 0));
+            (b["isOnline"] == true ? 1 : 0).compareTo(a["isOnline"] == true ? 1 : 0));
 
         return ListView.builder(
           itemCount: docs.length,
           itemBuilder: (context, i) {
             final u = docs[i];
 
+            final profile = (u["profile"] != null && u["profile"] != "")
+                ? baseUrl + u["profile"]
+                : "";
+
             return ListTile(
               leading: CircleAvatar(
-                backgroundImage: u["profile"] != null
-                    ? NetworkImage(u["profile"])
-                    : AssetImage("assets/default.jpg"),
+                backgroundImage: profile != ""
+                    ? NetworkImage(profile)
+                    : AssetImage("assets/default.jpg") as ImageProvider,
               ),
-              title: Text(u["username"]),
-              subtitle: Text(u["isOnline"] ? "En ligne 🔥" : "Hors ligne"),
-              trailing:
-              u["isOnline"] ? Icon(Icons.circle, color: Colors.green, size: 12)
-                  : Icon(Icons.circle, color: Colors.grey, size: 12),
+              title: Text(u["username"] ?? "Utilisateur"),
+              subtitle: Text(u["isOnline"] == true ? "En ligne 🔥" : "Hors ligne"),
+              trailing: Icon(
+                Icons.circle,
+                color: u["isOnline"] == true ? Colors.green : Colors.grey,
+                size: 12,
+              ),
               onTap: () {
                 Navigator.push(
                   context,
@@ -46,8 +55,8 @@ class PrivateUsersPage extends StatelessWidget {
                     builder: (_) => PrivateChatPage(
                       currentId: myId,
                       otherId: int.parse(u["uid"]),
-                      otherName: u["username"],
-                      otherProfile: u["profile"],
+                      otherName: u["username"] ?? "Utilisateur",
+                      otherProfile: profile,
                     ),
                   ),
                 );
