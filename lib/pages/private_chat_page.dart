@@ -34,27 +34,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   @override
   void initState() {
     super.initState();
-    ensureChatDocumentExists();
     markMessagesAsSeen();
   }
 
-  // ----------------------- ENSURE CHAT DOCUMENT EXISTS -----------------------
-  Future<void> ensureChatDocumentExists() async {
-    final docRef =
-    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
-
-    await docRef.set({}, SetOptions(merge: true));
-  }
-
   // ----------------------- MARK SEEN -----------------------
-  Future<void> markMessagesAsSeen() async {
-    final chatDoc = FirebaseFirestore.instance
+  void markMessagesAsSeen() async {
+    final ref = FirebaseFirestore.instance
         .collection("private_chats")
-        .doc(chatId);
-
-    await chatDoc.set({}, SetOptions(merge: true));
-
-    final ref = chatDoc.collection("messages");
+        .doc(chatId)
+        .collection("messages");
 
     final unread = await ref
         .where("to", isEqualTo: widget.currentId)
@@ -67,16 +55,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   }
 
   // ----------------------- SEND MESSAGE -----------------------
-  Future<void> sendMessage() async {
+  void sendMessage() {
     final text = msgCtrl.text.trim();
     if (text.isEmpty) return;
 
-    final chatDoc =
-    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
-
-    await chatDoc.set({}, SetOptions(merge: true));
-
-    await chatDoc.collection("messages").add({
+    FirebaseFirestore.instance
+        .collection("private_chats")
+        .doc(chatId)
+        .collection("messages")
+        .add({
       "from": widget.currentId,
       "to": widget.otherId,
       "text": text,
@@ -84,9 +71,10 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
       "seen": false,
     });
 
-    await chatDoc.set({
-      "typing_${widget.currentId}": false
-    }, SetOptions(merge: true));
+    FirebaseFirestore.instance
+        .collection("private_chats")
+        .doc(chatId)
+        .update({"typing_${widget.currentId}": false});
 
     msgCtrl.clear();
     scrollToBottom();
@@ -94,11 +82,11 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
   // ----------------------- SCROLL AUTO -----------------------
   void scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 150), () {
+    Future.delayed(Duration(milliseconds: 200), () {
       if (scrollCtrl.hasClients) {
         scrollCtrl.animateTo(
           0,
-          duration: const Duration(milliseconds: 300),
+          duration: Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -107,21 +95,16 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
   // ----------------------- TYPING INDICATOR -----------------------
   void setTyping(bool isTyping) {
-    final ref = FirebaseFirestore.instance
-        .collection("private_chats")
-        .doc(chatId);
+    final doc =
+    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
 
-    ref.set({
-      "typing_${widget.currentId}": isTyping
-    }, SetOptions(merge: true));
+    doc.update({"typing_${widget.currentId}": isTyping});
 
     typingTimer?.cancel();
 
     if (isTyping) {
       typingTimer = Timer(const Duration(seconds: 1), () {
-        ref.set({
-          "typing_${widget.currentId}": false
-        }, SetOptions(merge: true));
+        doc.update({"typing_${widget.currentId}": false});
       });
     }
   }
@@ -129,7 +112,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   // ----------------------- UI MESSAGE BUBBLE -----------------------
   Widget messageBubble(Map<String, dynamic> m) {
     final bool isMe = m["from"] == widget.currentId;
-    final String message = m["text"];
+    final String msg = m["text"];
     final bool seen = m["seen"] == true;
 
     final timestamp = m["timestamp"] != null
@@ -139,13 +122,13 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isMe ? Colors.teal : Colors.grey.shade300,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
             bottomLeft: Radius.circular(isMe ? 16 : 0),
             bottomRight: Radius.circular(isMe ? 0 : 16),
           ),
@@ -155,13 +138,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
-              message,
+              msg,
               style: TextStyle(
                 color: isMe ? Colors.white : Colors.black,
                 fontSize: 15,
               ),
             ),
             const SizedBox(height: 4),
+
+            // TIMESTAMP
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -175,13 +160,11 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                 if (isMe) ...[
                   const SizedBox(width: 6),
                   Icon(
-                    seen
-                        ? Icons.check_circle
-                        : Icons.check_circle_outline,
+                    seen ? Icons.check_circle : Icons.check_circle_outline,
                     size: 14,
                     color: Colors.white70,
                   ),
-                ],
+                ]
               ],
             ),
           ],
@@ -190,7 +173,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     );
   }
 
-  // ----------------------- AVATAR -----------------------
+  // ----------------------- PROFILE IMAGE -----------------------
   ImageProvider getProfileImage() {
     if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
       return const AssetImage("assets/default.jpg");
@@ -201,8 +184,13 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   // ----------------------- BUILD -----------------------
   @override
   Widget build(BuildContext context) {
-    final chatDoc =
-    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
+    final chatRef = FirebaseFirestore.instance
+        .collection("private_chats")
+        .doc(chatId);
+
+    final messagesRef = chatRef
+        .collection("messages")
+        .orderBy("timestamp", descending: true);
 
     return Scaffold(
       appBar: AppBar(
@@ -218,42 +206,41 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
         ),
       ),
 
+      // ----------------------- BODY -----------------------
       body: Column(
         children: [
-          // ---------- TYPING INDICATOR ----------
+          // 🔥 TYPING INDICATOR
           StreamBuilder(
-            stream: chatDoc.snapshots(),
+            stream: chatRef.snapshots(),
             builder: (context, snap) {
               if (!snap.hasData || !snap.data!.exists) return SizedBox();
 
               final data = snap.data!.data() as Map<String, dynamic>? ?? {};
-              final typing = data["typing_${widget.otherId}"] == true;
+              final bool otherTyping =
+                  data["typing_${widget.otherId}"] == true;
 
-              return typing
+              return otherTyping
                   ? Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: EdgeInsets.all(8),
                 child: Text(
                   "${widget.otherName} est en train d’écrire...",
                   style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey.shade700),
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
               )
-                  : const SizedBox(height: 0);
+                  : SizedBox(height: 0);
             },
           ),
 
-          // ---------- MESSAGES ----------
+          // 🔥 MESSAGES
           Expanded(
             child: StreamBuilder(
-              stream: chatDoc
-                  .collection("messages")
-                  .orderBy("timestamp", descending: true)
-                  .snapshots(),
+              stream: messagesRef.snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData) {
+                if (!snap.hasData)
                   return const Center(child: CircularProgressIndicator());
-                }
 
                 final docs = snap.data!.docs;
 
@@ -261,24 +248,25 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   controller: scrollCtrl,
                   reverse: true,
                   itemCount: docs.length,
-                  itemBuilder: (_, i) =>
-                      messageBubble(docs[i].data() as Map<String, dynamic>),
+                  itemBuilder: (_, i) {
+                    final m = docs[i].data() as Map<String, dynamic>;
+                    return messageBubble(m);
+                  },
                 );
               },
             ),
           ),
 
-          // ---------- INPUT ----------
+          // 🔥 INPUT BAR
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: Colors.grey.shade200,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: msgCtrl,
-                    onChanged: (value) => setTyping(value.isNotEmpty),
+                    onChanged: (txt) => setTyping(txt.isNotEmpty),
                     decoration: InputDecoration(
                       hintText: "Votre message...",
                       filled: true,
