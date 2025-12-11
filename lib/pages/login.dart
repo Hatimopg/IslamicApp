@@ -5,6 +5,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
+  final Function(int userId) onLogin;
+
+  LoginPage({required this.onLogin});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
@@ -33,6 +37,9 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        // appeler main.dart pour stocker l'id user et activer online/offline automatique
+        widget.onLogin(data["userId"]);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -45,7 +52,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         );
-
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Identifiants incorrects")),

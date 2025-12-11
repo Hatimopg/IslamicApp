@@ -33,10 +33,17 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
     msgCtrl.clear();
   }
 
+  ImageProvider getProfileImage(String? url) {
+    if (url == null || url.isEmpty || !url.contains(".")) {
+      return const AssetImage("assets/default.jpg");
+    }
+    return NetworkImage(url);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Communauté")),
+      appBar: AppBar(title: const Text("Communauté")),
       body: Column(
         children: [
           Expanded(
@@ -47,7 +54,7 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData)
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
 
                 final docs = snapshot.data!.docs;
 
@@ -62,10 +69,7 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: (profile != null && profile != "")
-                            ? NetworkImage(profile)
-                            : AssetImage("assets/default.jpg")
-                        as ImageProvider,
+                        backgroundImage: getProfileImage(profile),
                       ),
                       title: Text(username),
                       subtitle: Text(message),
@@ -77,14 +81,13 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
             ),
           ),
 
-          // INPUT MESSAGE
           Container(
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
                 Expanded(child: TextField(controller: msgCtrl)),
                 IconButton(
-                  icon: Icon(Icons.send, color: Colors.teal),
+                  icon: const Icon(Icons.send, color: Colors.teal),
                   onPressed: sendMessage,
                 )
               ],

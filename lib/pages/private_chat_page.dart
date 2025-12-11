@@ -44,23 +44,25 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     msg.clear();
   }
 
+  ImageProvider getImage() {
+    if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
+      return const AssetImage("assets/default.jpg");
+    }
+    return NetworkImage(widget.otherProfile!);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final profileImage = widget.otherProfile != null
-        ? NetworkImage(widget.otherProfile!)
-        : const AssetImage("assets/default.jpg") as ImageProvider;
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(backgroundImage: profileImage),
-            SizedBox(width: 10),
+            CircleAvatar(backgroundImage: getImage()),
+            const SizedBox(width: 10),
             Text(widget.otherName),
           ],
         ),
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -72,8 +74,9 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   .orderBy("timestamp", descending: true)
                   .snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData)
-                  return Center(child: CircularProgressIndicator());
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                 final docs = snap.data!.docs;
 
@@ -88,9 +91,9 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                       alignment:
                       isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        margin:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        padding: EdgeInsets.all(10),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.teal : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(12),
@@ -108,12 +111,11 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
               },
             ),
           ),
-
           Row(
             children: [
               Expanded(child: TextField(controller: msg)),
               IconButton(
-                icon: Icon(Icons.send, color: Colors.teal),
+                icon: const Icon(Icons.send, color: Colors.teal),
                 onPressed: send,
               ),
             ],

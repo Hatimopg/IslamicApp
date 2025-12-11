@@ -8,7 +8,7 @@ class PrivateUsersPage extends StatelessWidget {
   PrivateUsersPage({required this.myId});
 
   final String baseUrl =
-      "https://exciting-learning-production-d784.up.railway.app/";
+      "https://exciting-learning-production-d784.up.railway.app/uploads/";
 
   @override
   Widget build(BuildContext context) {
@@ -16,14 +16,13 @@ class PrivateUsersPage extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection("users").snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
 
         final docs = snapshot.data!.docs
             .where((u) => u["uid"] != myId.toString())
             .toList();
 
-        // ---- FIX 1 : convertir en vrai bool ----
         docs.sort((a, b) {
           final bool aOnline = a["isOnline"] == true;
           final bool bOnline = b["isOnline"] == true;
@@ -35,19 +34,12 @@ class PrivateUsersPage extends StatelessWidget {
           itemBuilder: (context, i) {
             final u = docs[i];
 
-            // ---- FIX 2 : PHOTO PROPRE ----
             final rawProfile = u["profile"];
-
             final String? profileUrl =
-            (rawProfile != null &&
-                rawProfile is String &&
-                rawProfile.isNotEmpty &&
-                (rawProfile.contains(".jpg") ||
-                    rawProfile.contains(".png")))
+            (rawProfile != null && rawProfile != "")
                 ? baseUrl + rawProfile
                 : null;
 
-            // ---- FIX 3 : online clean ----
             final bool isOnline = u["isOnline"] == true;
 
             return ListTile(
@@ -61,9 +53,7 @@ class PrivateUsersPage extends StatelessWidget {
               trailing: Icon(
                 Icons.circle,
                 color: isOnline ? Colors.green : Colors.grey,
-                size: 12,
               ),
-
               onTap: () {
                 Navigator.push(
                   context,
@@ -71,7 +61,7 @@ class PrivateUsersPage extends StatelessWidget {
                     builder: (_) => PrivateChatPage(
                       currentId: myId,
                       otherId: int.parse(u["uid"]),
-                      otherName: u["username"] ?? "Inconnu",
+                      otherName: u["username"] ?? "Utilisateur",
                       otherProfile: profileUrl,
                     ),
                   ),

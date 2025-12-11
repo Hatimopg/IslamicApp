@@ -42,7 +42,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       if (finalConfirm == true) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => LoginPage()),
+          MaterialPageRoute(builder: (_) => LoginPage(onLogin: (_) {})),
               (route) => false,
         );
       }
