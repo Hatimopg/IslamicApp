@@ -6,35 +6,42 @@ import dotenv from "dotenv";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import fetch from "node-fetch";  // IMPORTANT
 import { db } from "./db.js";
 import admin from "firebase-admin";
-import { Logtail } from "@logtail/node";
 
 dotenv.config();
 
 /* ============================================================
-                    LOGTAIL LOGGER INIT
+                    BETTERSTACK LOGGING (HTTP)
 =============================================================== */
-const logger = new Logtail(process.env.LOGTAIL_TOKEN);
 
-// flush logs when Railway pauses the container
-process.on("beforeExit", async () => {
-  await logger.flush();
-});
-
-// Capture global crashes
-process.on("uncaughtException", (err) => {
-  logger.error("Uncaught Exception", { error: err.message });
-});
-process.on("unhandledRejection", (reason) => {
-  logger.error("Unhandled Rejection", { reason });
-});
+async function sendLog(message, data = {}) {
+  try {
+    await fetch("https://s1628594.eu-nbg-2.betterstackdata.com/logs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.LOGTAIL_TOKEN}`   // TON TOKEN mZpv27...
+      },
+      body: JSON.stringify({
+        dt: new Date().toISOString(),
+        level: "info",
+        message,
+        data
+      })
+    });
+  } catch (err) {
+    console.error("LOG ERROR →", err.message);
+  }
+}
 
 /* ============================================================
                     FIREBASE ADMIN INIT
 =============================================================== */
+
 if (!process.env.FIREBASE_JSON) {
-  logger.error("FIREBASE_JSON variable missing!");
+  console.error("❌ FIREBASE_JSON variable missing!");
   process.exit(1);
 }
 
@@ -71,15 +78,17 @@ const storage = multer.diskStorage({
     cb(null, unique + path.extname(file.originalname));
   },
 });
+
 const upload = multer({ storage });
 
 app.use("/uploads", express.static(uploadFolder));
 
 /* ============================================================
-                    TEST ENDPOINT FOR LOGTAIL
+                      TEST LOG ENDPOINT
 =============================================================== */
-app.get("/log-test", (req, res) => {
-  logger.info("🔥 Logtail test triggered!");
+
+app.get("/log-test", async (req, res) => {
+  await sendLog("🔥 TEST — Log system working!");
   res.json({ ok: true });
 });
 
@@ -111,12 +120,12 @@ app.post("/register", async (req, res) => {
       lastSeen: new Date()
     });
 
-    logger.info("User registered", { userId: newUserId });
+    sendLog("User registered", { userId: newUserId });
 
     res.json({ status: "ok", userId: newUserId });
 
   } catch (err) {
-    logger.error("REGISTER ERROR", { error: err.message });
+    sendLog("REGISTER ERROR", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -135,7 +144,7 @@ app.post("/login", async (req, res) => {
     );
 
     if (rows.length === 0) {
-      logger.warn("LOGIN FAILED: unknown username", { username });
+      sendLog("LOGIN FAILED: username unknown", { username });
       return res.status(400).json({ error: "Utilisateur inconnu" });
     }
 
@@ -143,7 +152,7 @@ app.post("/login", async (req, res) => {
 
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
-      logger.warn("LOGIN FAILED: wrong password", { username });
+      sendLog("LOGIN FAILED: wrong password", { username });
       return res.status(400).json({ error: "Mot de passe incorrect" });
     }
 
@@ -156,7 +165,7 @@ app.post("/login", async (req, res) => {
       lastSeen: new Date()
     });
 
-    logger.info("User logged in", { userId: user.id });
+    sendLog("User logged in", { userId: user.id });
 
     res.json({
       token,
@@ -168,7 +177,7 @@ app.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    logger.error("LOGIN ERROR", { error: err.message });
+    sendLog("LOGIN ERROR", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -186,22 +195,22 @@ app.post("/logout", async (req, res) => {
       lastSeen: new Date()
     });
 
-    logger.info("User logged out", { userId: id });
+    sendLog("User logged out", { userId: id });
 
     res.json({ success: true });
 
   } catch (err) {
-    logger.error("LOGOUT ERROR", { error: err.message });
+    sendLog("LOGOUT ERROR", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ============================================================
-                        ROOT
+                            ROOT
 =============================================================== */
 
 app.get("/", (req, res) => {
-  logger.info("Root endpoint hit");
+  sendLog("Root endpoint hit");
   res.json({ message: "IslamicApp backend is running 🚀" });
 });
 
@@ -211,6 +220,6 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  logger.info("Server started", { port: PORT });
+  sendLog("Server started", { port: PORT });
   console.log(`🚀 Backend running on port ${PORT}`);
 });
