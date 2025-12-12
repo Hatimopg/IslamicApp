@@ -13,19 +13,19 @@ import { logInfo, logWarn, logError } from "./logger.js";
 dotenv.config();
 
 /* ============================================================
-               GLOBAL CRASH HANDLING (ADVANCED)
+                GLOBAL CRASH HANDLING (ADVANCED)
 =============================================================== */
 process.on("uncaughtException", (err) => {
   logError("🔥 UNCAUGHT EXCEPTION", {
     message: err.message,
-    stack: err.stack
+    stack: err.stack,
   });
 });
 
 process.on("unhandledRejection", (reason) => {
   logError("🔥 UNHANDLED PROMISE", {
     reason: reason?.message ?? reason,
-    stack: reason?.stack ?? null
+    stack: reason?.stack ?? null,
   });
 });
 
@@ -46,7 +46,7 @@ admin.initializeApp({
 const firestore = admin.firestore();
 
 /* ============================================================
-                     EXPRESS INIT
+                        EXPRESS INIT
 =============================================================== */
 const app = express();
 app.use(cors());
@@ -64,7 +64,7 @@ app.use((req, res, next) => {
       method: req.method,
       url: req.originalUrl,
       status: res.statusCode,
-      duration_ms: duration
+      duration_ms: duration,
     });
   });
 
@@ -87,6 +87,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use("/uploads", express.static(uploadFolder));
+
+/* ============================================================
+                    ROOT (Fix Flutter 404)
+=============================================================== */
+app.get("/", (req, res) => {
+  logInfo("📡 ROOT ping");
+  res.json({ ok: true, message: "Backend running 🚀" });
+});
 
 /* ============================================================
                     TEST LOG
@@ -126,11 +134,10 @@ app.post("/register", async (req, res) => {
     logInfo("👤 User created", { userId: newUserId });
 
     res.json({ status: "ok", userId: newUserId });
-
   } catch (err) {
     logError("❌ REGISTER ERROR", {
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
     res.status(500).json({ error: err.message });
   }
@@ -180,18 +187,17 @@ app.post("/login", async (req, res) => {
       region: user.region,
       profile: user.profile,
     });
-
   } catch (err) {
     logError("❌ LOGIN ERROR", {
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ============================================================
-                     PROFILE
+                     PROFILE (Fix Flutter)
 =============================================================== */
 app.get("/profile/:id", async (req, res) => {
   try {
@@ -214,11 +220,46 @@ app.get("/profile/:id", async (req, res) => {
     logInfo("📄 Profile fetched", { userId: id });
 
     res.json(rows[0]);
-
   } catch (err) {
     logError("❌ PROFILE ERROR", {
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
+    });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+                     USERS FULL (Messenger)
+=============================================================== */
+app.get("/users-full/:id", async (req, res) => {
+  try {
+    const myId = req.params.id;
+
+    const [users] = await db.execute(
+      `SELECT id, username, profile FROM users WHERE id != ? ORDER BY username ASC`,
+      [myId]
+    );
+
+    const snapshot = await firestore.collection("users").get();
+    const fsUsers = {};
+    snapshot.forEach((doc) => (fsUsers[doc.id] = doc.data()));
+
+    users.forEach((u) => {
+      if (u.profile) {
+        u.profile = `https://exciting-learning-production-d784.up.railway.app/uploads/${u.profile}`;
+      }
+      u.isOnline = fsUsers[u.id]?.isOnline ?? false;
+      u.lastSeen = fsUsers[u.id]?.lastSeen ?? null;
+    });
+
+    logInfo("👥 Users list fetched", { count: users.length });
+
+    res.json(users);
+  } catch (err) {
+    logError("❌ USERS-FULL ERROR", {
+      error: err.message,
+      stack: err.stack,
     });
     res.status(500).json({ error: err.message });
   }
@@ -250,11 +291,10 @@ app.post("/upload-profile", upload.single("profile"), async (req, res) => {
     logInfo("🖼 Profile updated", { userId, file: filename });
 
     res.json({ success: true, file: filename });
-
   } catch (err) {
     logError("❌ UPLOAD ERROR", {
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
     res.status(500).json({ error: err.message });
   }
