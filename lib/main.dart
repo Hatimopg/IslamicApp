@@ -9,6 +9,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(IslamicApp());
 }
 
@@ -17,8 +18,11 @@ class IslamicApp extends StatefulWidget {
   State<IslamicApp> createState() => _IslamicAppState();
 }
 
-class _IslamicAppState extends State<IslamicApp> with WidgetsBindingObserver {
-  int? userId; // stocke l'id utilisateur connecté
+class _IslamicAppState extends State<IslamicApp>
+    with WidgetsBindingObserver {
+
+  int? userId;
+  bool isDarkMode = false; // 🌙 mode nuit
 
   @override
   void initState() {
@@ -32,41 +36,59 @@ class _IslamicAppState extends State<IslamicApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // appelé quand l'app passe background / foreground / fermée
+  // 🔥 change state online/offline firebase
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (userId == null) return;
 
-    final ref =
-    FirebaseFirestore.instance.collection("users").doc(userId.toString());
+    final ref = FirebaseFirestore.instance
+        .collection("users")
+        .doc(userId.toString());
 
     if (state == AppLifecycleState.resumed) {
       ref.update({"isOnline": true, "lastSeen": DateTime.now()});
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached ||
-        state == AppLifecycleState.inactive) {
+    } else {
       ref.update({"isOnline": false, "lastSeen": DateTime.now()});
     }
   }
 
-  // méthode appelée par LoginPage pour enregistrer l'id utilisateur
   void setLoggedUser(int id) {
     userId = id;
-
     FirebaseFirestore.instance
         .collection("users")
-        .doc(userId.toString())
-        .update({
-      "isOnline": true,
-      "lastSeen": DateTime.now(),
-    });
+        .doc(id.toString())
+        .update({"isOnline": true, "lastSeen": DateTime.now()});
+  }
+
+  // 🌙 toggle theme global
+  void toggleTheme() {
+    setState(() => isDarkMode = !isDarkMode);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoginPage(onLogin: setLoggedUser),
+
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+
+      theme: ThemeData(
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+      ),
+
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: ColorScheme.dark(
+          primary: Colors.teal.shade200,
+        ),
+      ),
+
+      home: LoginPage(
+        onLogin: setLoggedUser,
+        onToggleTheme: toggleTheme, // 🔥 pour HomePage
+      ),
     );
   }
 }

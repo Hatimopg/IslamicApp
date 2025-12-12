@@ -99,7 +99,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => LoginPage(onLogin: (_) {})),
+      MaterialPageRoute(
+        builder: (_) => LoginPage(
+          onLogin: (_) {},
+          onToggleTheme: () {}, // 👈 ajout obligatoire
+        ),
+      ),
       (route) => false,
     );
   }

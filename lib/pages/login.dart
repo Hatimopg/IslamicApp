@@ -6,8 +6,12 @@ import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   final Function(int userId) onLogin;
+  final VoidCallback onToggleTheme; // 🌙 Rajouté
 
-  LoginPage({required this.onLogin});
+  const LoginPage({
+    required this.onLogin,
+    required this.onToggleTheme,
+  });
 
   @override
   _LoginPageState createState() => _LoginPageState();
@@ -37,8 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // appeler main.dart pour stocker l'id user et activer online/offline automatique
-        widget.onLogin(data["userId"]);
+        widget.onLogin(data["userId"]); // set online
 
         Navigator.pushReplacement(
           context,
@@ -49,6 +52,7 @@ class _LoginPageState extends State<LoginPage> {
               profile: data["profile"] != null
                   ? "https://exciting-learning-production-d784.up.railway.app/uploads/${data["profile"]}"
                   : "",
+              onToggleTheme: widget.onToggleTheme, // 🌙 Passage ici
             ),
           ),
         );
@@ -70,12 +74,20 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.dark_mode),
+            onPressed: widget.onToggleTheme, // 🌙 bouton dark mode
+          )
+        ],
+      ),
       body: Center(
         child: Container(
           width: 420,
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.blueAccent,
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
@@ -91,9 +103,9 @@ class _LoginPageState extends State<LoginPage> {
               Text(
                 "IslamicApp",
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  color: Colors.teal.shade700,
+                  color: Colors.purple,
                 ),
               ),
               const SizedBox(height: 30),
@@ -124,7 +136,9 @@ class _LoginPageState extends State<LoginPage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => RegisterPage()),
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(),
+                    ),
                   );
                 },
                 child: Text(
