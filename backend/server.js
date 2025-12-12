@@ -8,15 +8,28 @@ import path from "path";
 import fs from "fs";
 import { db } from "./db.js";
 import admin from "firebase-admin";
+import { Logtail } from "@logtail/node";
 
 dotenv.config();
 
 /* ============================================================
+                    LOGTAIL LOGGER INIT
+=============================================================== */
+const logger = new Logtail(process.env.LOGTAIL_TOKEN);
+
+/* Capture global crashes */
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught Exception", { error: err.message });
+});
+process.on("unhandledRejection", (reason) => {
+  logger.error("Unhandled Rejection", { reason });
+});
+
+/* ============================================================
                     FIREBASE ADMIN INIT
 =============================================================== */
-
 if (!process.env.FIREBASE_JSON) {
-    console.error("❌ ERROR: FIREBASE_JSON variable missing in Railway!");
+    logger.error("FIREBASE_JSON variable missing!");
     process.exit(1);
 }
 
@@ -75,7 +88,6 @@ app.post("/register", async (req, res) => {
 
         const newUserId = result.insertId.toString();
 
-        // FIRESTORE USER DOCUMENT
         await firestore.collection("users").doc(newUserId).set({
             uid: newUserId,
             username,
@@ -86,10 +98,12 @@ app.post("/register", async (req, res) => {
             lastSeen: new Date()
         });
 
+        logger.info("User registered", { userId: newUserId });
+
         res.json({ status: "ok", userId: newUserId });
 
     } catch (err) {
-        console.error("REGISTER ERROR:", err);
+        logger.error("REGISTER ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
 });
@@ -107,24 +121,29 @@ app.post("/login", async (req, res) => {
             [username]
         );
 
-        if (rows.length === 0)
+        if (rows.length === 0) {
+            logger.warn("LOGIN FAILED: unknown username", { username });
             return res.status(400).json({ error: "Utilisateur inconnu" });
+        }
 
         const user = rows[0];
 
         const match = await bcrypt.compare(password, user.password_hash);
-        if (!match)
+        if (!match) {
+            logger.warn("LOGIN FAILED: wrong password", { username });
             return res.status(400).json({ error: "Mot de passe incorrect" });
+        }
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
             expiresIn: "7d",
         });
 
-        // FIRESTORE → user online
         await firestore.collection("users").doc(user.id.toString()).update({
             isOnline: true,
             lastSeen: new Date()
         });
+
+        logger.info("User logged in", { userId: user.id });
 
         res.json({
             token,
@@ -136,7 +155,7 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
-        console.error("LOGIN ERROR:", err);
+        logger.error("LOGIN ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
 });
@@ -154,9 +173,12 @@ app.post("/logout", async (req, res) => {
             lastSeen: new Date()
         });
 
+        logger.info("User logged out", { userId: id });
+
         res.json({ success: true });
 
     } catch (err) {
+        logger.error("LOGOUT ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
 });
@@ -180,7 +202,7 @@ app.get("/profile/:id", async (req, res) => {
         res.json(rows[0]);
 
     } catch (err) {
-        console.error("PROFILE ERROR:", err);
+        logger.error("PROFILE ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
 });
@@ -197,21 +219,21 @@ app.post("/upload-profile", upload.single("profile"), async (req, res) => {
 
         const filename = req.file.filename;
 
-        // MySQL update
         await db.execute(
             "UPDATE users SET profile = ? WHERE id = ?",
             [filename, userId]
         );
 
-        // Firestore update
         await firestore.collection("users").doc(userId.toString()).update({
             profile: filename
         });
 
+        logger.info("Profile picture updated", { userId });
+
         res.json({ success: true, file: filename });
 
     } catch (err) {
-        console.error("UPLOAD ERROR:", err);
+        logger.error("UPLOAD ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
 });
@@ -245,10 +267,12 @@ app.post("/delete-account", async (req, res) => {
         await db.execute("DELETE FROM users WHERE id = ?", [user_id]);
         await firestore.collection("users").doc(user_id.toString()).delete();
 
+        logger.info("User deleted account", { userId: user_id });
+
         res.json({ success: true });
 
     } catch (err) {
-        console.error("DELETE ERROR:", err);
+        logger.error("DELETE ACCOUNT ERROR", { error: err.message });
         res.status(500).json({ error: "Erreur serveur" });
     }
 });
@@ -278,34 +302,14 @@ app.get("/users-full/:id", async (req, res) => {
             u.lastSeen = fsUsers[u.id]?.lastSeen ?? null;
         });
 
+        logger.info("Users list fetched", { count: users.length });
+
         res.json(users);
 
     } catch (err) {
-        console.error("USERS-FULL ERROR:", err);
+        logger.error("USERS-FULL ERROR", { error: err.message });
         res.status(500).json({ error: err.message });
     }
-});
-
-/* ============================================================
-                        fix le user pr firebase
-=============================================================== */
-app.get("/fix-users", async (req, res) => {
-    const [rows] = await db.execute("SELECT * FROM users");
-
-    for (let u of rows) {
-        await firestore.collection("users").doc(u.id.toString()).set({
-            uid: u.id.toString(),
-            username: u.username,
-            profile: u.profile ?? null,
-            country: u.country,
-            region: u.region,
-            birthdate: u.birthdate,
-            isOnline: false,
-            lastSeen: new Date()
-        }, { merge: true });
-    }
-
-    res.json({ status: "ok", fixed: rows.length });
 });
 
 /* ============================================================
@@ -313,6 +317,7 @@ app.get("/fix-users", async (req, res) => {
 =============================================================== */
 
 app.get("/", (req, res) => {
+    logger.info("Root endpoint hit");
     res.json({ message: "IslamicApp backend is running 🚀" });
 });
 
@@ -321,4 +326,7 @@ app.get("/", (req, res) => {
 =============================================================== */
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
+app.listen(PORT, () => {
+    logger.info("Server started", { port: PORT });
+    console.log(`🚀 Backend running on port ${PORT}`);
+});
