@@ -42,10 +42,17 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bubbleColor = isDark ? Colors.grey.shade900 : Colors.teal.shade50;
+    final inputBg = isDark ? Colors.grey.shade900 : Colors.white;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Communauté")),
+
       body: Column(
         children: [
+          // ------------------ MESSAGE LIST ------------------
           Expanded(
             child: StreamBuilder(
               stream: FirebaseFirestore.instance
@@ -59,6 +66,7 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                 final docs = snapshot.data!.docs;
 
                 return ListView.builder(
+                  padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
                     final m = docs[i].data() as Map<String, dynamic>;
@@ -67,13 +75,30 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                     final message = m["message"] ?? "";
                     final profile = m["profile"];
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: getProfileImage(profile),
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: bubbleColor,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      title: Text(username),
-                      subtitle: Text(message),
-                      tileColor: Colors.teal.shade50,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: getProfileImage(profile),
+                        ),
+                        title: Text(
+                          username,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          message,
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[300] : Colors.black87,
+                          ),
+                        ),
+                      ),
                     );
                   },
                 );
@@ -81,14 +106,41 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
             ),
           ),
 
+          // ------------------ INPUT BAR ------------------
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+            ),
             child: Row(
               children: [
-                Expanded(child: TextField(controller: msgCtrl)),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.teal),
-                  onPressed: sendMessage,
+                Expanded(
+                  child: TextField(
+                    controller: msgCtrl,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Écrire un message...",
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                      filled: true,
+                      fillColor: inputBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.teal,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: sendMessage,
+                  ),
                 )
               ],
             ),

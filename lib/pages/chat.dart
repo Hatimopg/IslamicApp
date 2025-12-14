@@ -42,6 +42,8 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Communauté")),
 
@@ -77,9 +79,21 @@ class _ChatPageState extends State<ChatPage> {
                         leading: CircleAvatar(
                           backgroundImage: getProfileImage(profile),
                         ),
-                        title: Text(username),
-                        subtitle: Text(msg),
-                        tileColor: Colors.teal.shade50,
+                        title: Text(
+                          username,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          msg,
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[300] : Colors.grey[800],
+                          ),
+                        ),
+                        tileColor: isDark
+                            ? Colors.teal.withOpacity(0.25)
+                            : Colors.teal.shade50,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -94,16 +108,24 @@ class _ChatPageState extends State<ChatPage> {
           // ------------------ INPUT BAR ------------------
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(color: Colors.grey.shade200),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[900] : Colors.grey.shade200,
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: messageController,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                     decoration: InputDecoration(
                       hintText: "Écrire un message...",
-                      fillColor: Colors.white,
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
                       filled: true,
+                      fillColor: isDark ? Colors.grey[850] : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -113,9 +135,9 @@ class _ChatPageState extends State<ChatPage> {
                 const SizedBox(width: 10),
                 GestureDetector(
                   onTap: sendMessage,
-                  child: const CircleAvatar(
+                  child: CircleAvatar(
                     backgroundColor: Colors.teal,
-                    child: Icon(Icons.send, color: Colors.white),
+                    child: const Icon(Icons.send, color: Colors.white),
                   ),
                 ),
               ],

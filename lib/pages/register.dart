@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-
 class RegisterPage extends StatefulWidget {
   @override
   _RegisterState createState() => _RegisterState();
@@ -20,17 +19,34 @@ class _RegisterState extends State<RegisterPage> {
 
   final Map<String, List<String>> regions = {
     "Belgique": [
-      "Bruxelles", "Hainaut", "Liège", "Flandre Occidentale",
-      "Flandre Orientale", "Luxembourg", "Namur", "Brabant Wallon"
+      "Bruxelles",
+      "Hainaut",
+      "Liège",
+      "Flandre Occidentale",
+      "Flandre Orientale",
+      "Luxembourg",
+      "Namur",
+      "Brabant Wallon"
     ],
     "France": [
-      "Île-de-France", "Auvergne-Rhône-Alpes", "Occitanie", "Hauts-de-France",
-      "Grand Est", "Normandie", "Nouvelle-Aquitaine", "Bretagne"
+      "Île-de-France",
+      "Auvergne-Rhône-Alpes",
+      "Occitanie",
+      "Hauts-de-France",
+      "Grand Est",
+      "Normandie",
+      "Nouvelle-Aquitaine",
+      "Bretagne"
     ],
     "Maroc": [
-      "Casablanca-Settat", "Rabat-Salé-Kénitra", "Fès-Meknès",
-      "Marrakech-Safi", "Tanger-Tétouan-Al Hoceima",
-      "Souss-Massa", "Oriental", "Laâyoune-Sakia El Hamra"
+      "Casablanca-Settat",
+      "Rabat-Salé-Kénitra",
+      "Fès-Meknès",
+      "Marrakech-Safi",
+      "Tanger-Tétouan-Al Hoceima",
+      "Souss-Massa",
+      "Oriental",
+      "Laâyoune-Sakia El Hamra"
     ]
   };
 
@@ -39,8 +55,7 @@ class _RegisterState extends State<RegisterPage> {
 
     try {
       final url = Uri.parse(
-          "https://exciting-learning-production-d784.up.railway.app/register"
-      );
+          "https://exciting-learning-production-d784.up.railway.app/register");
 
       final response = await http.post(
         url,
@@ -88,64 +103,140 @@ class _RegisterState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Créer un compte"),
+        backgroundColor: isDark ? Colors.black : null,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: ListView(
           children: [
+            // ------------------ USERNAME ------------------
             TextField(
               controller: username,
-              decoration: const InputDecoration(labelText: "Nom d'utilisateur"),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: "Nom d'utilisateur",
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87),
+                enabledBorder: OutlineInputBorder(
+                    borderSide:
+                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
+              ),
             ),
+
             const SizedBox(height: 12),
 
+            // ------------------ PASSWORD ------------------
             TextField(
               controller: password,
               obscureText: true,
-              decoration: const InputDecoration(labelText: "Mot de passe"),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: "Mot de passe",
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87),
+                enabledBorder: OutlineInputBorder(
+                    borderSide:
+                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
+              ),
             ),
+
             const SizedBox(height: 12),
 
+            // ------------------ BIRTHDATE ------------------
             TextField(
               controller: birthdate,
               readOnly: true,
-              decoration: const InputDecoration(
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
                 labelText: "Date de naissance",
-                suffixIcon: Icon(Icons.calendar_month),
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87),
+                suffixIcon: const Icon(Icons.calendar_month),
+                enabledBorder: OutlineInputBorder(
+                    borderSide:
+                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
               onTap: pickBirthdate,
             ),
 
             const SizedBox(height: 20),
 
-            const Text("Pays :"),
-            DropdownButton(
-              value: selectedCountry,
-              isExpanded: true,
-              items: regions.keys
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (c) {
-                setState(() {
-                  selectedCountry = c!;
-                  selectedRegion = regions[c]!.first;
-                });
-              },
+            // ------------------ COUNTRY ------------------
+            Text(
+              "Pays :",
+              style:
+              TextStyle(color: isDark ? Colors.white : Colors.black),
+            ),
+            const SizedBox(height: 5),
+
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButton(
+                value: selectedCountry,
+                dropdownColor:
+                isDark ? Colors.grey.shade900 : Colors.white,
+                underline: SizedBox(),
+                isExpanded: true,
+                style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black),
+                items: regions.keys
+                    .map((c) =>
+                    DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (c) {
+                  setState(() {
+                    selectedCountry = c!;
+                    selectedRegion = regions[c]!.first;
+                  });
+                },
+              ),
             ),
 
             const SizedBox(height: 12),
 
-            const Text("Région :"),
-            DropdownButton(
-              value: selectedRegion,
-              isExpanded: true,
-              items: regions[selectedCountry]!
-                  .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                  .toList(),
-              onChanged: (r) => setState(() => selectedRegion = r!),
+            // ------------------ REGION ------------------
+            Text(
+              "Région :",
+              style:
+              TextStyle(color: isDark ? Colors.white : Colors.black),
+            ),
+            const SizedBox(height: 5),
+
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButton(
+                value: selectedRegion,
+                dropdownColor:
+                isDark ? Colors.grey.shade900 : Colors.white,
+                underline: SizedBox(),
+                isExpanded: true,
+                style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black),
+                items: regions[selectedCountry]!
+                    .map((r) =>
+                    DropdownMenuItem(value: r, child: Text(r)))
+                    .toList(),
+                onChanged: (r) => setState(() => selectedRegion = r!),
+              ),
             ),
 
             const SizedBox(height: 30),

@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
   int surahNumber = 0;
   int ayahNumber = 0;
 
-  // Audio player
+  // Audio
   final AudioPlayer player = AudioPlayer();
   bool isPlaying = false;
 
@@ -58,14 +58,14 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadUserLocation();
 
-    // stop automatically at end of audio
+    // Arrêt automatique
     player.onPlayerComplete.listen((_) {
       setState(() => isPlaying = false);
     });
   }
 
   // ============================================================
-  // Charger la localisation depuis ton backend
+  //   LOCALISATION
   // ============================================================
   Future<void> loadUserLocation() async {
     final res = await http.get(Uri.parse(
@@ -87,42 +87,59 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // API Verset du jour + Audio
+  //   VERSET + AUDIO
   // ============================================================
 
   Future<void> fetchVerse() async {
     try {
-      final res = await http.get(
-          Uri.parse("https://api.alquran.cloud/v1/ayah/$currentAyah"));
+      final res =
+      await http.get(Uri.parse("https://api.alquran.cloud/v1/ayah/$currentAyah"));
 
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body)["data"];
+        final d = jsonDecode(res.body)["data"];
 
         setState(() {
-          verse = data["text"];
-          surahName = data["surah"]["englishName"];
-          surahNumber = data["surah"]["number"];
-          ayahNumber = data["numberInSurah"];
+          verse = d["text"];
+          surahName = d["surah"]["englishName"];
+          surahNumber = d["surah"]["number"];
+          ayahNumber = d["numberInSurah"];
         });
       }
-    } catch (e) {
-      setState(() => verse = "Erreur lors du chargement.");
+    } catch (_) {
+      verse = "Erreur lors du chargement.";
     }
   }
 
-  // 🎧 NOUVEL AUDIO 100% COMPATIBLE WEB & ANDROID
+  // AUDIO EVERY AYAH (100% Web + Android)
   Future<void> playAudio() async {
     final url =
-        "https://everyayah.com/data/Alafasy_128kbps/$currentAyah.mp3";
+        "https://cdn.islamic.network/quran/audio/128/ar.alafasy/$currentAyah.mp3";
 
     try {
+      // Vérifie si l'audio existe
+      final check = await http.get(Uri.parse(url));
+
+      if (check.statusCode != 200) {
+        print("AUDIO NOT FOUND for ayah $currentAyah");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Audio indisponible pour ce verset")),
+        );
+        return;
+      }
+
       await player.stop();
       await player.play(UrlSource(url));
+
       setState(() => isPlaying = true);
+
     } catch (e) {
-      print("AUDIO ERROR: $e");
+      print("AUDIO ERROR => $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur audio")),
+      );
     }
   }
+
 
   Future<void> pauseAudio() async {
     await player.pause();
@@ -132,23 +149,23 @@ class _HomePageState extends State<HomePage> {
   void nextVerse() {
     currentAyah++;
     player.stop();
-    setState(() => isPlaying = false);
+    isPlaying = false;
     fetchVerse();
+    setState(() {});
   }
 
   // ============================================================
-  // Prières
+  //   PRIÈRES
   // ============================================================
   Future<void> fetchPrayerTimes() async {
-    final url =
-        "https://api.aladhan.com/v1/timingsByCity?city=$selectedCity&country=$country&method=2";
-
     try {
-      final res = await http.get(Uri.parse(url));
+      final res = await http.get(Uri.parse(
+          "https://api.aladhan.com/v1/timingsByCity?city=$selectedCity&country=$country&method=2"));
+
       if (res.statusCode == 200) {
-        final timings = jsonDecode(res.body)["data"]["timings"];
-        setState(() => prayerTimes = timings);
+        prayerTimes = jsonDecode(res.body)["data"]["timings"];
         computeNextPrayer();
+        setState(() {});
       }
     } catch (_) {}
   }
@@ -157,7 +174,7 @@ class _HomePageState extends State<HomePage> {
     if (prayerTimes == null) return;
 
     final now = DateTime.now();
-    final map = {
+    final list = {
       "Fajr": prayerTimes!["Fajr"],
       "Dhuhr": prayerTimes!["Dhuhr"],
       "Asr": prayerTimes!["Asr"],
@@ -165,16 +182,14 @@ class _HomePageState extends State<HomePage> {
       "Isha": prayerTimes!["Isha"],
     };
 
-    for (var entry in map.entries) {
-      final t = entry.value.split(":");
-      final time = DateTime(
-          now.year, now.month, now.day, int.parse(t[0]), int.parse(t[1]));
+    for (var e in list.entries) {
+      final t = e.value.split(":");
+      final prayerTime =
+      DateTime(now.year, now.month, now.day, int.parse(t[0]), int.parse(t[1]));
 
-      if (time.isAfter(now)) {
-        setState(() {
-          nextPrayer = entry.key;
-          countdown = time.difference(now);
-        });
+      if (prayerTime.isAfter(now)) {
+        nextPrayer = e.key;
+        countdown = prayerTime.difference(now);
         return;
       }
     }
@@ -183,38 +198,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // Météo
+  //   METEO
   // ============================================================
   Future<void> fetchWeather() async {
     try {
-      final geo = await http.get(Uri.parse(
-          "https://geocoding-api.open-meteo.com/v1/search?name=$selectedCity"));
-
-      if (geo.statusCode != 200) return;
+      final geo =
+      await http.get(Uri.parse("https://geocoding-api.open-meteo.com/v1/search?name=$selectedCity"));
 
       final g = jsonDecode(geo.body);
-      if (g["results"] == null || g["results"].isEmpty) return;
+      if (g["results"] == null) return;
 
       final lat = g["results"][0]["latitude"];
       final lon = g["results"][0]["longitude"];
 
-      final res = await http.get(Uri.parse(
+      final w = await http.get(Uri.parse(
           "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"));
 
-      if (res.statusCode == 200) {
-        weather = jsonDecode(res.body)["current_weather"];
-        setState(() {});
-      }
+      weather = jsonDecode(w.body)["current_weather"];
+      setState(() {});
     } catch (_) {}
   }
 
   // ============================================================
-  // UI HOME
+  //   UI
   // ============================================================
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final pages = [
-      buildHome(),
+      buildHome(isDark),
       CommunityChatPage(
         userId: widget.userId,
         username: widget.username,
@@ -226,10 +239,10 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("IslamicApp"),
+        title: const Text("IslamicApp"),
         actions: [
           IconButton(
-            icon: Icon(Icons.dark_mode),
+            icon: const Icon(Icons.dark_mode),
             onPressed: widget.onToggleTheme,
           )
         ],
@@ -248,55 +261,45 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget buildHome() {
+  Widget buildHome(bool isDark) {
     return ListView(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       children: [
         Text(
           "Bienvenue, ${widget.username} 👋",
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
         ),
-
-        SizedBox(height: 20),
-
-        buildVerseCard(),
-
-        SizedBox(height: 20),
-
-        buildPrayerCard(),
-
-        SizedBox(height: 20),
-
-        buildWeatherCard(),
+        const SizedBox(height: 20),
+        buildVerseCard(isDark),
+        const SizedBox(height: 20),
+        buildPrayerCard(isDark),
+        const SizedBox(height: 20),
+        buildWeatherCard(isDark),
       ],
     );
   }
 
-  // ====================== VERSET + AUDIO =======================
-  Widget buildVerseCard() {
+  // ====================== VERSET =======================
+  Widget buildVerseCard(bool isDark) {
     return Container(
-      padding: EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.blue,
+        color: isDark ? Colors.blue.shade700 : Colors.blue,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("📖 Verset du jour",
+          const Text("📖 Verset du jour",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-
-          SizedBox(height: 10),
-
-          Text(verse, style: TextStyle(fontSize: 17, height: 1.5)),
-
-          SizedBox(height: 8),
-
-          Text("Sourate $surahNumber — $surahName, Verset $ayahNumber",
-              style: TextStyle(color: Colors.teal.shade700)),
-
-          SizedBox(height: 15),
-
+          const SizedBox(height: 10),
+          Text(verse, style: const TextStyle(fontSize: 17, height: 1.5)),
+          const SizedBox(height: 8),
+          Text(
+            "Sourate $surahNumber — $surahName, Verset $ayahNumber",
+            style: TextStyle(color: Colors.teal.shade200),
+          ),
+          const SizedBox(height: 15),
           Row(
             children: [
               ElevatedButton.icon(
@@ -304,10 +307,10 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
                 label: Text(isPlaying ? "Pause" : "Écouter"),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: nextVerse,
-                child: Text("Verset suivant"),
+                child: const Text("Verset suivant"),
               ),
             ],
           )
@@ -317,39 +320,35 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ====================== PRIÈRES =======================
-  Widget buildPrayerCard() {
+  Widget buildPrayerCard(bool isDark) {
     if (prayerTimes == null) {
       return Container(
-        padding: EdgeInsets.all(18),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.green,
+          color: isDark ? Colors.green.shade700 : Colors.green,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text("Chargement des horaires..."),
+        child: const Text("Chargement des horaires..."),
       );
     }
 
     return Container(
-      padding: EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.orange,
+        color: isDark ? Colors.orange.shade700 : Colors.orange,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("🕌 Horaires de prière",
+          const Text("🕌 Horaires de prière",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-
-          SizedBox(height: 10),
-
+          const SizedBox(height: 10),
           ...["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
               .map((p) => rowPrayer(p, prayerTimes![p])),
-
-          SizedBox(height: 15),
-
+          const SizedBox(height: 15),
           Text("Prochaine prière : $nextPrayer",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           Text("Dans ${countdown.inHours}h ${countdown.inMinutes % 60}m"),
         ],
       ),
@@ -358,41 +357,41 @@ class _HomePageState extends State<HomePage> {
 
   Widget rowPrayer(String name, String time) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(name),
-          Text(time, style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(time, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
   // ====================== MÉTÉO =======================
-  Widget buildWeatherCard() {
+  Widget buildWeatherCard(bool isDark) {
     if (weather == null) {
       return Container(
-        padding: EdgeInsets.all(18),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.blue,
+          color: isDark ? Colors.blue.shade800 : Colors.blue,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text("Chargement météo..."),
+        child: const Text("Chargement météo..."),
       );
     }
 
     return Container(
-      padding: EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.purple,
+        color: isDark ? Colors.purple.shade700 : Colors.purple,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         "🌤 Météo à $selectedCity\n"
             "Température : ${weather!["temperature"]}°C\n"
             "Vent : ${weather!["windspeed"]} km/h",
-        style: TextStyle(fontSize: 16),
+        style: const TextStyle(fontSize: 16),
       ),
     );
   }

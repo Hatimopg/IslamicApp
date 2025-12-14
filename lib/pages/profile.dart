@@ -28,9 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfile();
   }
 
-  // =====================================================
-  // CHARGER LE PROFIL
-  // =====================================================
+  // ========================= LOAD PROFILE =========================
   Future<void> loadProfile() async {
     final url = Uri.parse("$baseUrl/profile/${widget.userId}");
     final response = await http.get(url);
@@ -45,9 +43,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // =====================================================
-  // UPLOAD PHOTO
-  // =====================================================
+  // ========================= UPLOAD AVATAR =========================
   Future<void> pickImageAndUpload() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
@@ -63,8 +59,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
       request.files.add(http.MultipartFile.fromBytes(
-        "profile",
-        bytes,
+        "profile", bytes,
         filename: image.name,
       ));
     } else {
@@ -76,18 +71,18 @@ class _ProfilePageState extends State<ProfilePage> {
     final response = await request.send();
 
     if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Photo mise à jour !")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Photo mise à jour !")),
+      );
       loadProfile();
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Erreur upload")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur upload")),
+      );
     }
   }
 
-  // =====================================================
-  // LOGOUT → Firestore isOnline = false
-  // =====================================================
+  // ========================= LOGOUT =========================
   Future<void> logout() async {
     try {
       await http.post(
@@ -95,25 +90,25 @@ class _ProfilePageState extends State<ProfilePage> {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"id": widget.userId}),
       );
-    } catch (e) {}
+    } catch (_) {}
 
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         builder: (_) => LoginPage(
           onLogin: (_) {},
-          onToggleTheme: () {}, // 👈 ajout obligatoire
+          onToggleTheme: () {},
         ),
       ),
-      (route) => false,
+          (route) => false,
     );
   }
 
-  // =====================================================
-  // UI
-  // =====================================================
+  // ========================= UI =========================
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (loading) return const Center(child: CircularProgressIndicator());
     if (user == null) return const Center(child: Text("Erreur chargement profil"));
 
@@ -125,11 +120,15 @@ class _ProfilePageState extends State<ProfilePage> {
         : const AssetImage("assets/default.jpg") as ImageProvider;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Profil")),
+      appBar: AppBar(
+        title: const Text("Profil"),
+        backgroundColor: isDark ? Colors.black : null,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // ---------------- AVATAR ----------------
             Stack(
               alignment: Alignment.bottomRight,
               children: [
@@ -150,25 +149,32 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
 
             const SizedBox(height: 20),
+
             Text(
               user!["username"],
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+              ),
             ),
 
             const SizedBox(height: 25),
 
-            infoRow("Pays", user!["country"]),
-            infoRow("Région", user!["region"]),
-            infoRow("Naissance", birth),
+            infoRow("Pays", user!["country"], isDark),
+            infoRow("Région", user!["region"], isDark),
+            infoRow("Naissance", birth, isDark),
 
             const SizedBox(height: 35),
 
+            // ---------------- CHANGE PASSWORD ----------------
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => ChangePasswordPage(userId: widget.userId)),
+                    builder: (_) => ChangePasswordPage(userId: widget.userId),
+                  ),
                 );
               },
               icon: const Icon(Icons.lock_reset),
@@ -178,6 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
             const SizedBox(height: 20),
 
+            // ---------------- LOGOUT ----------------
             ElevatedButton.icon(
               onPressed: logout,
               icon: const Icon(Icons.logout),
@@ -187,6 +194,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
             const SizedBox(height: 20),
 
+            // ---------------- DELETE ACCOUNT ----------------
             ElevatedButton.icon(
               icon: const Icon(Icons.delete_forever),
               label: const Text("Supprimer mon compte"),
@@ -212,19 +220,29 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget infoRow(String label, String value) {
+  // ========================= INFO ROW =========================
+  Widget infoRow(String label, String value, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text("$label : ",
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(value),
+          Text(
+            "$label : ",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
         ],
       ),
     );
   }
 
+  // ========================= BUTTON STYLE =========================
   ButtonStyle btnStyle(Color color) {
     return ElevatedButton.styleFrom(
       backgroundColor: color,

@@ -6,7 +6,7 @@ import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   final Function(int userId) onLogin;
-  final VoidCallback onToggleTheme; // 🌙 Rajouté
+  final VoidCallback onToggleTheme;
 
   const LoginPage({
     required this.onLogin,
@@ -41,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        widget.onLogin(data["userId"]); // set online
+        widget.onLogin(data["userId"]);
 
         Navigator.pushReplacement(
           context,
@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
               profile: data["profile"] != null
                   ? "https://exciting-learning-production-d784.up.railway.app/uploads/${data["profile"]}"
                   : "",
-              onToggleTheme: widget.onToggleTheme, // 🌙 Passage ici
+              onToggleTheme: widget.onToggleTheme,
             ),
           ),
         );
@@ -72,31 +72,40 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? Colors.black : Colors.grey.shade100,
+
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.dark_mode),
-            onPressed: widget.onToggleTheme, // 🌙 bouton dark mode
+            onPressed: widget.onToggleTheme,
           )
         ],
       ),
+
       body: Center(
         child: Container(
           width: 420,
           padding: const EdgeInsets.all(32),
+
           decoration: BoxDecoration(
-            color: Colors.blueAccent,
+            color: isDark ? Colors.grey.shade900 : Colors.white,
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              )
+              if (!isDark)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                )
             ],
           ),
+
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -105,28 +114,63 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(
                   fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple,
+                  color: isDark ? Colors.purpleAccent : Colors.purple,
                 ),
               ),
+
               const SizedBox(height: 30),
 
               TextField(
                 controller: username,
-                decoration: const InputDecoration(labelText: "Nom d'utilisateur"),
+                style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Nom d'utilisateur",
+                  labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black87),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white54 : Colors.grey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.purpleAccent : Colors.teal),
+                  ),
+                ),
               ),
+
               const SizedBox(height: 14),
 
               TextField(
                 controller: password,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Mot de passe"),
+                style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Mot de passe",
+                  labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black87),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white54 : Colors.grey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.purpleAccent : Colors.teal),
+                  ),
+                ),
               ),
+
               const SizedBox(height: 26),
 
               loading
                   ? const CircularProgressIndicator(color: Colors.teal)
                   : ElevatedButton(
                 onPressed: login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                  isDark ? Colors.purpleAccent : Colors.teal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 40, vertical: 14),
+                ),
                 child: const Text("Se connecter"),
               ),
 
@@ -136,14 +180,14 @@ class _LoginPageState extends State<LoginPage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => RegisterPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => RegisterPage()),
                   );
                 },
                 child: Text(
                   "Créer un compte",
-                  style: TextStyle(color: Colors.teal.shade700),
+                  style: TextStyle(
+                      color:
+                      isDark ? Colors.purpleAccent : Colors.teal.shade700),
                 ),
               ),
             ],

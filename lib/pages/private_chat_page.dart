@@ -23,7 +23,6 @@ class PrivateChatPage extends StatefulWidget {
 class _PrivateChatPageState extends State<PrivateChatPage> {
   TextEditingController msgCtrl = TextEditingController();
   ScrollController scrollCtrl = ScrollController();
-
   Timer? typingTimer;
 
   String get chatId {
@@ -109,7 +108,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     }
   }
 
-  // ----------------------- UI MESSAGE BUBBLE -----------------------
+  // ----------------------- PROFILE IMAGE -----------------------
+  ImageProvider getProfileImage() {
+    if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
+      return const AssetImage("assets/default.jpg");
+    }
+    return NetworkImage(widget.otherProfile!);
+  }
+
+  // ----------------------- MESSAGE BUBBLE (DARK MODE FIX) -----------------------
   Widget messageBubble(Map<String, dynamic> m) {
     final bool isMe = m["from"] == widget.currentId;
     final String msg = m["text"];
@@ -119,13 +126,17 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
         ? DateFormat("HH:mm").format(m["timestamp"].toDate())
         : "";
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isMe ? Colors.teal : Colors.grey.shade300,
+          color: isMe
+              ? Colors.teal
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),
@@ -140,20 +151,22 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             Text(
               msg,
               style: TextStyle(
-                color: isMe ? Colors.white : Colors.black,
+                color: isMe
+                    ? Colors.white
+                    : (isDark ? Colors.white : Colors.black),
                 fontSize: 15,
               ),
             ),
             const SizedBox(height: 4),
 
-            // TIMESTAMP
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   timestamp,
                   style: TextStyle(
-                    color: isMe ? Colors.white70 : Colors.black54,
+                    color:
+                    isMe ? Colors.white70 : (isDark ? Colors.white70 : Colors.black54),
                     fontSize: 10,
                   ),
                 ),
@@ -173,20 +186,13 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     );
   }
 
-  // ----------------------- PROFILE IMAGE -----------------------
-  ImageProvider getProfileImage() {
-    if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
-      return const AssetImage("assets/default.jpg");
-    }
-    return NetworkImage(widget.otherProfile!);
-  }
-
   // ----------------------- BUILD -----------------------
   @override
   Widget build(BuildContext context) {
-    final chatRef = FirebaseFirestore.instance
-        .collection("private_chats")
-        .doc(chatId);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final chatRef =
+    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
 
     final messagesRef = chatRef
         .collection("messages")
@@ -195,8 +201,8 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return Scaffold(
       appBar: AppBar(
         elevation: 1,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: isDark ? Colors.black : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
         title: Row(
           children: [
             CircleAvatar(backgroundImage: getProfileImage()),
@@ -206,10 +212,9 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
         ),
       ),
 
-      // ----------------------- BODY -----------------------
       body: Column(
         children: [
-          // 🔥 TYPING INDICATOR
+          // ------------------- TYPING -------------------
           StreamBuilder(
             stream: chatRef.snapshots(),
             builder: (context, snap) {
@@ -226,7 +231,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   "${widget.otherName} est en train d’écrire...",
                   style: TextStyle(
                     fontStyle: FontStyle.italic,
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.white70 : Colors.grey.shade700,
                   ),
                 ),
               )
@@ -234,7 +239,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             },
           ),
 
-          // 🔥 MESSAGES
+          // ------------------- MESSAGES -------------------
           Expanded(
             child: StreamBuilder(
               stream: messagesRef.snapshots(),
@@ -257,20 +262,24 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             ),
           ),
 
-          // 🔥 INPUT BAR
+          // ------------------- INPUT BAR -------------------
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: Colors.grey.shade200,
+            color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: msgCtrl,
                     onChanged: (txt) => setTyping(txt.isNotEmpty),
+                    style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: "Votre message...",
+                      hintStyle: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.black54),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: isDark ? Colors.grey.shade800 : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

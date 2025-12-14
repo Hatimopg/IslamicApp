@@ -56,6 +56,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final inputDecoration = InputDecoration(
+      labelStyle: TextStyle(
+        color: isDark ? Colors.grey[300] : Colors.grey[800],
+      ),
+      filled: true,
+      fillColor: isDark ? Colors.grey[850] : Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(title: Text("Modifier le mot de passe")),
       body: Padding(
@@ -65,30 +78,46 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             TextField(
               controller: oldPass,
               obscureText: true,
-              decoration: InputDecoration(labelText: "Ancien mot de passe"),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: inputDecoration.copyWith(
+                labelText: "Ancien mot de passe",
+              ),
             ),
             SizedBox(height: 12),
 
             TextField(
               controller: newPass,
               obscureText: true,
-              decoration: InputDecoration(labelText: "Nouveau mot de passe"),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: inputDecoration.copyWith(
+                labelText: "Nouveau mot de passe",
+              ),
             ),
             SizedBox(height: 12),
 
             TextField(
               controller: confirmPass,
               obscureText: true,
-              decoration: InputDecoration(labelText: "Confirmer le mot de passe"),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: inputDecoration.copyWith(
+                labelText: "Confirmer le mot de passe",
+              ),
             ),
 
             SizedBox(height: 25),
+
             loading
                 ? CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: changePassword,
-              child: Text("Valider"),
-            )
+                : SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: changePassword,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text("Valider"),
+              ),
+            ),
           ],
         ),
       ),
