@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.islamicapp"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "23.1.7779620"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
