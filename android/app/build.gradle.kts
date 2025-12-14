@@ -27,14 +27,10 @@ android {
         versionName = flutter.versionName
     }
 
-    // ✅ FIX DÉFINITIF STRIP DEBUG SYMBOLS
-    ndk {
-        debugSymbolLevel = "NONE"
-    }
-
+    // ✅ FIX OFFICIEL STRIP DEBUG SYMBOLS (KTS)
     packaging {
         jniLibs {
-            keepDebugSymbols += setOf("**/*.so")
+            useLegacyPackaging = true
         }
     }
 
