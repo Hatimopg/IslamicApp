@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import admin from "firebase-admin";
 
+
 import { db } from "./db.js";
 import { auth } from "./auth.js";
 import { logError } from "./logger.js";
@@ -37,6 +38,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
 /* ============================================================
    STATIC UPLOAD FOLDER
