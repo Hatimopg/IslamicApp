@@ -9,6 +9,7 @@ import fs from "fs";
 import { db } from "./db.js";
 import admin from "firebase-admin";
 import { logInfo, logWarn, logError } from "./logger.js";
+import { auth } from "./auth.js";
 
 dotenv.config();
 
@@ -238,6 +239,26 @@ app.post("/logout", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+/* ============================================================
+                         AUTH JWT
+=============================================================== */
+
+
+
+app.get("/profile/:id", auth, async (req, res) => {
+  if (req.userId.toString() !== req.params.id)
+    return res.status(403).json({ error: "Forbidden" });
+
+  ...
+});
+
+app.get("/users-full/:id", auth, async (req, res) => { ... });
+
+app.post("/upload-profile", auth, upload.single("profile"), async (...) => { ... });
+
+app.post("/logout", auth, async (...) => { ... });
 
 /* ============================================================
                      404 HANDLER

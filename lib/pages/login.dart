@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'register.dart';
 import 'home.dart';
 import 'package:http/http.dart' as http;
@@ -41,6 +42,10 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("token", data["token"]);
+        await prefs.setInt("userId", data["userId"]);
+
         widget.onLogin(data["userId"]);
 
         Navigator.pushReplacement(
@@ -49,14 +54,14 @@ class _LoginPageState extends State<LoginPage> {
             builder: (_) => HomePage(
               userId: data["userId"],
               username: data["username"],
-              profile: data["profile"] != null
+              profile: data["profile"] != null && data["profile"] != ""
                   ? "https://exciting-learning-production-d784.up.railway.app/uploads/${data["profile"]}"
                   : "",
               onToggleTheme: widget.onToggleTheme,
             ),
           ),
         );
-      } else {
+    } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Identifiants incorrects")),
         );
