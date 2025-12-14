@@ -1,10 +1,7 @@
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
     id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -30,7 +27,11 @@ android {
         versionName = flutter.versionName
     }
 
-    // 🔧 FIX STRIP DEBUG SYMBOLS (.so)
+    // ✅ FIX DÉFINITIF STRIP DEBUG SYMBOLS
+    ndk {
+        debugSymbolLevel = "NONE"
+    }
+
     packaging {
         jniLibs {
             keepDebugSymbols += setOf("**/*.so")
@@ -39,7 +40,6 @@ android {
 
     buildTypes {
         release {
-            // ⚠️ OK pour le build, on changera pour Play Store plus tard
             signingConfig = signingConfigs.getByName("debug")
         }
     }
