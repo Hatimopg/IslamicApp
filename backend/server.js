@@ -6,15 +6,16 @@ import dotenv from "dotenv";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { db } from "./db.js";
 import admin from "firebase-admin";
-import { logInfo, logWarn, logError } from "./logger.js";
+
+import { db } from "./db.js";
 import { auth } from "./auth.js";
+import { logError } from "./logger.js";
 
 dotenv.config();
 
 /* ============================================================
-            FIREBASE ADMIN INIT
+   FIREBASE ADMIN INIT
 =============================================================== */
 if (!process.env.FIREBASE_JSON) {
   logError("❌ FIREBASE_JSON missing");
@@ -30,14 +31,15 @@ admin.initializeApp({
 const firestore = admin.firestore();
 
 /* ============================================================
-                    EXPRESS INIT
+   EXPRESS INIT
 =============================================================== */
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 /* ============================================================
-              STATIC UPLOAD FOLDER (persistant)
+   STATIC UPLOAD FOLDER
 =============================================================== */
 const uploadFolder = "uploads";
 if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder);
@@ -45,7 +47,7 @@ if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder);
 app.use("/uploads", express.static(uploadFolder));
 
 /* ============================================================
-                      MULTER UPLOAD
+   MULTER CONFIG
 =============================================================== */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadFolder),
@@ -54,17 +56,18 @@ const storage = multer.diskStorage({
     cb(null, unique + path.extname(file.originalname));
   },
 });
+
 const upload = multer({ storage });
 
 /* ============================================================
-                        ROOT
+   ROOT
 =============================================================== */
 app.get("/", (req, res) => {
   res.json({ ok: true });
 });
 
 /* ============================================================
-                         REGISTER
+   REGISTER (PUBLIC)
 =============================================================== */
 app.post("/register", async (req, res) => {
   try {
@@ -90,14 +93,14 @@ app.post("/register", async (req, res) => {
       lastSeen: new Date(),
     });
 
-    res.json({ status: "ok", userId: uid });
+    res.json({ success: true, userId: uid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ============================================================
-                         LOGIN
+   LOGIN (PUBLIC + JWT)
 =============================================================== */
 app.post("/login", async (req, res) => {
   try {
@@ -122,12 +125,19 @@ app.post("/login", async (req, res) => {
       lastSeen: new Date(),
     });
 
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.json({
+      token,
       userId: user.id,
       username: user.username,
       country: user.country,
       region: user.region,
-      profile: user.profile, // 🔥 ON NE RENVOIE PAS L'URL COMPLÈTE
+      profile: user.profile ?? "",
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -135,15 +145,16 @@ app.post("/login", async (req, res) => {
 });
 
 /* ============================================================
-                     GET PROFILE
+   GET PROFILE (JWT)
 =============================================================== */
-app.get("/profile/:id", async (req, res) => {
+app.get("/profile/:id", auth, async (req, res) => {
   try {
-    const { id } = req.params;
+    if (req.userId.toString() !== req.params.id)
+      return res.status(403).json({ error: "Forbidden" });
 
     const [rows] = await db.execute(
       "SELECT id, username, country, region, birthdate, profile FROM users WHERE id = ?",
-      [id]
+      [req.params.id]
     );
 
     if (rows.length === 0)
@@ -151,7 +162,6 @@ app.get("/profile/:id", async (req, res) => {
 
     const u = rows[0];
 
-    // 🔥 IMPORTANT : ON RENVOIE JUSTE FILENAME
     res.json({
       id: u.id,
       username: u.username,
@@ -166,14 +176,14 @@ app.get("/profile/:id", async (req, res) => {
 });
 
 /* ============================================================
-                    USER LIST (PRIVATE CHAT)
+   USER LIST (JWT)
 =============================================================== */
-app.get("/users-full/:id", async (req, res) => {
+app.get("/users-full/:id", auth, async (req, res) => {
   try {
-    const myId = req.params.id;
+    const myId = req.userId;
 
     const [users] = await db.execute(
-      `SELECT id, username, profile FROM users WHERE id != ?`,
+      "SELECT id, username, profile FROM users WHERE id != ?",
       [myId]
     );
 
@@ -184,7 +194,7 @@ app.get("/users-full/:id", async (req, res) => {
     const final = users.map((u) => ({
       id: u.id,
       username: u.username,
-      profile: u.profile ?? "", // 🔥 jamais d'URL complète
+      profile: u.profile ?? "",
       isOnline: fsUsers[u.id]?.isOnline ?? false,
       lastSeen: fsUsers[u.id]?.lastSeen ?? null,
     }));
@@ -196,40 +206,43 @@ app.get("/users-full/:id", async (req, res) => {
 });
 
 /* ============================================================
-                     UPLOAD PROFILE
+   UPLOAD PROFILE (JWT)
 =============================================================== */
-app.post("/upload-profile", upload.single("profile"), async (req, res) => {
-  try {
-    const userId = req.body.user_id;
+app.post(
+  "/upload-profile",
+  auth,
+  upload.single("profile"),
+  async (req, res) => {
+    try {
+      const userId = req.userId;
 
-    if (!req.file)
-      return res.status(400).json({ error: "No file uploaded" });
+      if (!req.file)
+        return res.status(400).json({ error: "No file uploaded" });
 
-    const filename = req.file.filename;
+      const filename = req.file.filename;
 
-    await db.execute(
-      "UPDATE users SET profile = ? WHERE id = ?",
-      [filename, userId]
-    );
+      await db.execute(
+        "UPDATE users SET profile = ? WHERE id = ?",
+        [filename, userId]
+      );
 
-    await firestore.collection("users").doc(userId).update({
-      profile: filename, // 🔥 pas d'URL ici non plus
-    });
+      await firestore.collection("users").doc(userId.toString()).update({
+        profile: filename,
+      });
 
-    res.json({ success: true, file: filename });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      res.json({ success: true, file: filename });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
 
 /* ============================================================
-                      LOGOUT
+   LOGOUT (JWT)
 =============================================================== */
-app.post("/logout", async (req, res) => {
+app.post("/logout", auth, async (req, res) => {
   try {
-    const { id } = req.body;
-
-    await firestore.collection("users").doc(id.toString()).update({
+    await firestore.collection("users").doc(req.userId.toString()).update({
       isOnline: false,
       lastSeen: new Date(),
     });
@@ -240,35 +253,15 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-
 /* ============================================================
-                         AUTH JWT
-=============================================================== */
-
-
-
-app.get("/profile/:id", auth, async (req, res) => {
-  if (req.userId.toString() !== req.params.id)
-    return res.status(403).json({ error: "Forbidden" });
-
-  ...
-});
-
-app.get("/users-full/:id", auth, async (req, res) => { ... });
-
-app.post("/upload-profile", auth, upload.single("profile"), async (...) => { ... });
-
-app.post("/logout", auth, async (...) => { ... });
-
-/* ============================================================
-                     404 HANDLER
+   404 HANDLER
 =============================================================== */
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
 /* ============================================================
-                     START SERVER
+   START SERVER
 =============================================================== */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
