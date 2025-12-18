@@ -6,19 +6,22 @@ class CommunityChatPage extends StatefulWidget {
   final String username;
   final String profile;
 
-  CommunityChatPage({
+  const CommunityChatPage({
+    super.key,
     required this.userId,
     required this.username,
     required this.profile,
   });
 
   @override
-  _CommunityChatPageState createState() => _CommunityChatPageState();
+  State<CommunityChatPage> createState() => _CommunityChatPageState();
 }
 
 class _CommunityChatPageState extends State<CommunityChatPage> {
-  TextEditingController msgCtrl = TextEditingController();
+  final TextEditingController msgCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
 
+  // ================= SEND MESSAGE =================
   void sendMessage() {
     if (msgCtrl.text.trim().isEmpty) return;
 
@@ -31,8 +34,21 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
     });
 
     msgCtrl.clear();
+    scrollToBottom();
   }
 
+  // ================= SCROLL =================
+  void scrollToBottom() {
+    if (!_scrollCtrl.hasClients) return;
+
+    _scrollCtrl.animateTo(
+      _scrollCtrl.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  // ================= PROFILE IMAGE =================
   ImageProvider getProfileImage(String? url) {
     if (url == null || url.isEmpty || !url.contains(".")) {
       return const AssetImage("assets/default.jpg");
@@ -41,6 +57,14 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
   }
 
   @override
+  void dispose() {
+    msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  // ================= UI =================
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -48,24 +72,32 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
     final inputBg = isDark ? Colors.grey.shade900 : Colors.white;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Communauté")),
-
+      appBar: AppBar(
+        title: const Text("Communauté"),
+      ),
       body: Column(
         children: [
-          // ------------------ MESSAGE LIST ------------------
+          // ================= MESSAGE LIST =================
           Expanded(
-            child: StreamBuilder(
+            child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("community_messages")
                   .orderBy("timestamp", descending: false)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final docs = snapshot.data!.docs;
 
+                // 🔥 AUTO SCROLL AFTER FRAME
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  scrollToBottom();
+                });
+
                 return ListView.builder(
+                  controller: _scrollCtrl,
                   padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
@@ -88,14 +120,16 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                         title: Text(
                           username,
                           style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
+                            color:
+                            isDark ? Colors.white : Colors.black87,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         subtitle: Text(
                           message,
                           style: TextStyle(
-                            color: isDark ? Colors.grey[300] : Colors.black87,
+                            color:
+                            isDark ? Colors.grey[300] : Colors.black87,
                           ),
                         ),
                       ),
@@ -106,11 +140,12 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
             ),
           ),
 
-          // ------------------ INPUT BAR ------------------
+          // ================= INPUT BAR =================
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+              color:
+              isDark ? Colors.grey.shade900 : Colors.grey.shade200,
             ),
             child: Row(
               children: [
@@ -123,12 +158,14 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                     decoration: InputDecoration(
                       hintText: "Écrire un message...",
                       hintStyle: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        color:
+                        isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                       filled: true,
                       fillColor: inputBg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                   ),

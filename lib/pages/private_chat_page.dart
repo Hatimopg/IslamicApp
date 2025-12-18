@@ -9,7 +9,8 @@ class PrivateChatPage extends StatefulWidget {
   final String otherName;
   final String? otherProfile;
 
-  PrivateChatPage({
+  const PrivateChatPage({
+    super.key,
     required this.currentId,
     required this.otherId,
     required this.otherName,
@@ -17,12 +18,12 @@ class PrivateChatPage extends StatefulWidget {
   });
 
   @override
-  _PrivateChatPageState createState() => _PrivateChatPageState();
+  State<PrivateChatPage> createState() => _PrivateChatPageState();
 }
 
 class _PrivateChatPageState extends State<PrivateChatPage> {
-  TextEditingController msgCtrl = TextEditingController();
-  ScrollController scrollCtrl = ScrollController();
+  final TextEditingController msgCtrl = TextEditingController();
+  final ScrollController scrollCtrl = ScrollController();
   Timer? typingTimer;
 
   String get chatId {
@@ -36,8 +37,16 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     markMessagesAsSeen();
   }
 
-  // ----------------------- MARK SEEN -----------------------
-  void markMessagesAsSeen() async {
+  @override
+  void dispose() {
+    msgCtrl.dispose();
+    scrollCtrl.dispose();
+    typingTimer?.cancel();
+    super.dispose();
+  }
+
+  // ================= MARK SEEN =================
+  Future<void> markMessagesAsSeen() async {
     final ref = FirebaseFirestore.instance
         .collection("private_chats")
         .doc(chatId)
@@ -53,16 +62,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     }
   }
 
-  // ----------------------- SEND MESSAGE -----------------------
+  // ================= SEND MESSAGE =================
   void sendMessage() {
     final text = msgCtrl.text.trim();
     if (text.isEmpty) return;
 
-    FirebaseFirestore.instance
-        .collection("private_chats")
-        .doc(chatId)
-        .collection("messages")
-        .add({
+    final chatRef =
+    FirebaseFirestore.instance.collection("private_chats").doc(chatId);
+
+    chatRef.collection("messages").add({
       "from": widget.currentId,
       "to": widget.otherId,
       "text": text,
@@ -70,29 +78,26 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
       "seen": false,
     });
 
-    FirebaseFirestore.instance
-        .collection("private_chats")
-        .doc(chatId)
-        .update({"typing_${widget.currentId}": false});
+    chatRef.update({"typing_${widget.currentId}": false});
 
     msgCtrl.clear();
     scrollToBottom();
   }
 
-  // ----------------------- SCROLL AUTO -----------------------
+  // ================= AUTO SCROLL =================
   void scrollToBottom() {
-    Future.delayed(Duration(milliseconds: 200), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollCtrl.hasClients) {
         scrollCtrl.animateTo(
-          0,
-          duration: Duration(milliseconds: 300),
+          scrollCtrl.position.minScrollExtent,
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  // ----------------------- TYPING INDICATOR -----------------------
+  // ================= TYPING =================
   void setTyping(bool isTyping) {
     final doc =
     FirebaseFirestore.instance.collection("private_chats").doc(chatId);
@@ -100,7 +105,6 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     doc.update({"typing_${widget.currentId}": isTyping});
 
     typingTimer?.cancel();
-
     if (isTyping) {
       typingTimer = Timer(const Duration(seconds: 1), () {
         doc.update({"typing_${widget.currentId}": false});
@@ -108,7 +112,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     }
   }
 
-  // ----------------------- PROFILE IMAGE -----------------------
+  // ================= PROFILE IMAGE =================
   ImageProvider getProfileImage() {
     if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
       return const AssetImage("assets/default.jpg");
@@ -116,10 +120,10 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return NetworkImage(widget.otherProfile!);
   }
 
-  // ----------------------- MESSAGE BUBBLE (DARK MODE FIX) -----------------------
+  // ================= MESSAGE BUBBLE =================
   Widget messageBubble(Map<String, dynamic> m) {
     final bool isMe = m["from"] == widget.currentId;
-    final String msg = m["text"];
+    final String msg = m["text"] ?? "";
     final bool seen = m["seen"] == true;
 
     final timestamp = m["timestamp"] != null
@@ -138,8 +142,8 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
               ? Colors.teal
               : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isMe ? 16 : 0),
             bottomRight: Radius.circular(isMe ? 0 : 16),
           ),
@@ -154,20 +158,19 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                 color: isMe
                     ? Colors.white
                     : (isDark ? Colors.white : Colors.black),
-                fontSize: 15,
               ),
             ),
             const SizedBox(height: 4),
-
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   timestamp,
                   style: TextStyle(
-                    color:
-                    isMe ? Colors.white70 : (isDark ? Colors.white70 : Colors.black54),
                     fontSize: 10,
+                    color: isMe
+                        ? Colors.white70
+                        : (isDark ? Colors.white70 : Colors.black54),
                   ),
                 ),
                 if (isMe) ...[
@@ -179,14 +182,14 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   ),
                 ]
               ],
-            ),
+            )
           ],
         ),
       ),
     );
   }
 
-  // ----------------------- BUILD -----------------------
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -201,8 +204,6 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return Scaffold(
       appBar: AppBar(
         elevation: 1,
-        backgroundColor: isDark ? Colors.black : Colors.white,
-        foregroundColor: isDark ? Colors.white : Colors.black,
         title: Row(
           children: [
             CircleAvatar(backgroundImage: getProfileImage()),
@@ -211,43 +212,55 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
           ],
         ),
       ),
-
       body: Column(
         children: [
-          // ------------------- TYPING -------------------
-          StreamBuilder(
+          // ================= TYPING INDICATOR =================
+          StreamBuilder<DocumentSnapshot>(
             stream: chatRef.snapshots(),
             builder: (context, snap) {
-              if (!snap.hasData || !snap.data!.exists) return SizedBox();
+              if (!snap.hasData || !snap.data!.exists) {
+                return const SizedBox(height: 0);
+              }
 
-              final data = snap.data!.data() as Map<String, dynamic>? ?? {};
+              final data = snap.data!.data() as Map<String, dynamic>;
               final bool otherTyping =
                   data["typing_${widget.otherId}"] == true;
 
-              return otherTyping
-                  ? Padding(
-                padding: EdgeInsets.all(8),
-                child: Text(
-                  "${widget.otherName} est en train d’écrire...",
-                  style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: isDark ? Colors.white70 : Colors.grey.shade700,
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: otherTyping
+                    ? Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    "${widget.otherName} est en train d’écrire...",
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: isDark
+                          ? Colors.white70
+                          : Colors.grey.shade700,
+                    ),
                   ),
-                ),
-              )
-                  : SizedBox(height: 0);
+                )
+                    : const SizedBox(height: 0),
+              );
             },
           ),
 
-          // ------------------- MESSAGES -------------------
+          // ================= MESSAGES =================
           Expanded(
-            child: StreamBuilder(
+            child: StreamBuilder<QuerySnapshot>(
               stream: messagesRef.snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData)
+                if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final docs = snap.data!.docs;
+
+                // 🔥 AUTO SCROLL ON NEW MESSAGE
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  scrollToBottom();
+                });
 
                 return ListView.builder(
                   controller: scrollCtrl,
@@ -262,7 +275,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             ),
           ),
 
-          // ------------------- INPUT BAR -------------------
+          // ================= INPUT =================
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
@@ -272,16 +285,14 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   child: TextField(
                     controller: msgCtrl,
                     onChanged: (txt) => setTyping(txt.isNotEmpty),
-                    style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: "Votre message...",
-                      hintStyle: TextStyle(
-                          color: isDark ? Colors.white54 : Colors.black54),
                       filled: true,
-                      fillColor: isDark ? Colors.grey.shade800 : Colors.white,
+                      fillColor:
+                      isDark ? Colors.grey.shade800 : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                   ),
