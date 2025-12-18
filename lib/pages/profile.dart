@@ -6,13 +6,14 @@ import 'login.dart';
 import 'delete_account.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/token_storage.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
   const ProfilePage({required this.userId});
 
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
@@ -28,25 +29,45 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfile();
   }
 
-  // ========================= LOAD PROFILE =========================
   Future<void> loadProfile() async {
-    final url = Uri.parse("$baseUrl/profile/${widget.userId}");
-    final response = await http.get(url);
+    try {
+      final token = await TokenStorage.get();
 
-    if (response.statusCode == 200) {
-      setState(() {
-        user = jsonDecode(response.body);
-        loading = false;
-      });
-    } else {
-      setState(() => loading = false);
+      if (token == null) {
+        debugPrint("NO TOKEN");
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse("$baseUrl/profile/${widget.userId}"),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      debugPrint("PROFILE STATUS => ${res.statusCode}");
+      debugPrint("PROFILE BODY => ${res.body}");
+
+      if (res.statusCode == 200) {
+        user = jsonDecode(res.body);
+      }
+    } catch (e) {
+      debugPrint("PROFILE ERROR => $e");
     }
+
+    setState(() => loading = false);
   }
 
-  // ========================= UPLOAD AVATAR =========================
+
   Future<void> pickImageAndUpload() async {
+    final token = await TokenStorage.get();
+    if (token == null) return;
+
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+
     if (image == null) return;
 
     var request = http.MultipartRequest(
@@ -54,43 +75,46 @@ class _ProfilePageState extends State<ProfilePage> {
       Uri.parse("$baseUrl/upload-profile"),
     );
 
-    request.fields["user_id"] = widget.userId.toString();
+    request.headers["Authorization"] = "Bearer $token";
 
     if (kIsWeb) {
-      final bytes = await image.readAsBytes();
-      request.files.add(http.MultipartFile.fromBytes(
-        "profile", bytes,
-        filename: image.name,
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "profile",
+          await image.readAsBytes(),
+          filename: image.name,
+        ),
+      );
     } else {
       request.files.add(
-        await http.MultipartFile.fromPath("profile", image.path),
+        await http.MultipartFile.fromPath(
+          "profile",
+          image.path,
+        ),
       );
     }
 
-    final response = await request.send();
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Photo mise à jour !")),
-      );
+    final res = await request.send();
+    if (res.statusCode == 200) {
       loadProfile();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur upload")),
-      );
     }
   }
 
-  // ========================= LOGOUT =========================
+
   Future<void> logout() async {
     try {
+      final token = await TokenStorage.get();
+
       await http.post(
         Uri.parse("$baseUrl/logout"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"id": widget.userId}),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
       );
     } catch (_) {}
+
+    await TokenStorage.clear();
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -100,155 +124,84 @@ class _ProfilePageState extends State<ProfilePage> {
           onToggleTheme: () {},
         ),
       ),
-          (route) => false,
+          (_) => false,
     );
   }
 
-  // ========================= UI =========================
+
   @override
   Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     if (loading) return const Center(child: CircularProgressIndicator());
-    if (user == null) return const Center(child: Text("Erreur chargement profil"));
+    if (user == null) {
+      return const Center(child: Text("Impossible de charger le profil"));
+    }
 
-    String birth = user!["birthdate"].toString().split("T")[0];
+    final username = user!["username"] ?? "Utilisateur";
+    final country = user!["country"] ?? "—";
+    final region = user!["region"] ?? "—";
+    final birth = user!["birthdate"] != null
+        ? user!["birthdate"].toString().split("T")[0]
+        : "—";
 
-    final hasPic = user!["profile"] != null && user!["profile"] != "";
-    final img = hasPic
+    final img = (user!["profile"] != null && user!["profile"] != "")
         ? NetworkImage("$baseUrl/uploads/${user!["profile"]}")
         : const AssetImage("assets/default.jpg") as ImageProvider;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profil"),
-        backgroundColor: isDark ? Colors.black : null,
-      ),
+      appBar: AppBar(title: const Text("Profil")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // ---------------- AVATAR ----------------
             Stack(
               alignment: Alignment.bottomRight,
               children: [
                 CircleAvatar(radius: 60, backgroundImage: img),
-                GestureDetector(
-                  onTap: pickImageAndUpload,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.teal,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.camera_alt,
-                        color: Colors.white, size: 22),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.camera_alt),
+                  onPressed: pickImageAndUpload,
                 )
               ],
             ),
-
             const SizedBox(height: 20),
-
-            Text(
-              user!["username"],
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            infoRow("Pays", user!["country"], isDark),
-            infoRow("Région", user!["region"], isDark),
-            infoRow("Naissance", birth, isDark),
-
-            const SizedBox(height: 35),
-
-            // ---------------- CHANGE PASSWORD ----------------
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChangePasswordPage(userId: widget.userId),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.lock_reset),
-              label: const Text("Modifier le mot de passe"),
-              style: btnStyle(Colors.teal),
-            ),
-
+            Text(username,
+                style:
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-
-            // ---------------- LOGOUT ----------------
-            ElevatedButton.icon(
-              onPressed: logout,
-              icon: const Icon(Icons.logout),
-              label: const Text("Se déconnecter"),
-              style: btnStyle(Colors.red),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ---------------- DELETE ACCOUNT ----------------
-            ElevatedButton.icon(
-              icon: const Icon(Icons.delete_forever),
-              label: const Text("Supprimer mon compte"),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DeleteAccountPage(userId: widget.userId),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
+            infoRow("Pays", country),
+            infoRow("Région", region),
+            infoRow("Naissance", birth),
+            const SizedBox(height: 30),
+            ElevatedButton(
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            ChangePasswordPage(userId: widget.userId))),
+                child: const Text("Modifier le mot de passe")),
+            ElevatedButton(
+                onPressed: logout, child: const Text("Se déconnecter")),
+            ElevatedButton(
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            DeleteAccountPage(userId: widget.userId))),
+                child: const Text("Supprimer mon compte")),
           ],
         ),
       ),
     );
   }
 
-  // ========================= INFO ROW =========================
-  Widget infoRow(String label, String value, bool isDark) {
+  Widget infoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(
-            "$label : ",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ========================= BUTTON STYLE =========================
-  ButtonStyle btnStyle(Color color) {
-    return ElevatedButton.styleFrom(
-      backgroundColor: color,
-      foregroundColor: Colors.white,
-      minimumSize: const Size(double.infinity, 50),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Row(children: [
+        Text("$label : ",
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(value),
+      ]),
     );
   }
 }
