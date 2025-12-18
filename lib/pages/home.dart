@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 
 import '../utils/location_mapper.dart';
+import '../utils/city_storage.dart';
+import '../utils/token_storage.dart';
+
 import 'community_chat.dart';
 import 'private_users.dart';
 import 'profile.dart';
@@ -16,6 +19,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback onToggleTheme;
 
   const HomePage({
+    super.key,
     required this.userId,
     required this.username,
     required this.profile,
@@ -29,28 +33,27 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int index = 0;
 
-  // Verset
+  // ---------------- VERSET ----------------
   String verse = "Chargement...";
   String surahName = "";
   int surahNumber = 0;
   int ayahNumber = 0;
   int currentAyah = Random().nextInt(6236) + 1;
 
-  // Audio
   final AudioPlayer player = AudioPlayer();
   bool isPlaying = false;
 
-  // Prières
+  // ---------------- PRIÈRES ----------------
   Map<String, dynamic>? prayerTimes;
   String nextPrayer = "";
   Duration countdown = Duration.zero;
 
-  // Météo
+  // ---------------- MÉTÉO ----------------
   Map<String, dynamic>? weather;
 
-  // Localisation
-  String country = "Belgium";
-  String region = "Brussels";
+  // ---------------- LOCALISATION ----------------
+  String country = "Belgium"; // API AlAdhan → anglais
+  String region = "";
   String selectedCity = "Brussels";
 
   final String baseUrl =
@@ -60,37 +63,98 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     loadUserLocation();
+    fetchRandomVerse();
 
     player.onPlayerComplete.listen((_) {
       setState(() => isPlaying = false);
     });
   }
 
-  // =================== LOCALISATION ===================
+  // ================= LOCALISATION =================
   Future<void> loadUserLocation() async {
+    // 1️⃣ ville déjà choisie
+    final savedCity = await CityStorage.get();
+    if (savedCity != null) {
+      setState(() => selectedCity = savedCity);
+      fetchPrayerTimes();
+      fetchWeather();
+      return;
+    }
+
+    // 2️⃣ sinon via profil
     try {
-      final res = await http.get(Uri.parse("$baseUrl/profile/${widget.userId}"));
+      final token = await TokenStorage.get();
+
+      if (token == null) throw Exception("NO TOKEN");
+
+      final res = await http.get(
+        Uri.parse("$baseUrl/profile/${widget.userId}"),
+        headers: {"Authorization": "Bearer $token"},
+      );
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        country = data["country"] ?? "Belgium";
-        region = data["region"] ?? "Brussels";
-        selectedCity = resolveCity(country, region);
+        final c = data["country"]?.toString() ?? "";
+        final r = data["region"]?.toString() ?? "";
+
+        final city = resolveCity(c, r);
+
+        setState(() => selectedCity = city);
+        await CityStorage.save(city);
       }
-    } catch (e) {
-      debugPrint("PROFILE ERROR => $e");
+    } catch (_) {
+      setState(() => selectedCity = "Brussels");
     }
 
-    fetchRandomVerse();
     fetchPrayerTimes();
     fetchWeather();
-
-    setState(() {});
   }
 
-  // =================== VERSET ===================
+  // ================= CITY PICKER =================
+  void showCityPicker() {
+    const belgianCities = [
+      "Brussels",
+      "Antwerp",
+      "Ghent",
+      "Charleroi",
+      "Liège",
+      "Namur",
+      "Mons",
+      "Bruges",
+      "Leuven",
+      "Mechelen",
+      "Hasselt",
+      "Tournai",
+      "Arlon",
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => ListView(
+        children: belgianCities.map((city) {
+          return ListTile(
+            title: Text(city),
+            trailing: city == selectedCity
+                ? const Icon(Icons.check, color: Colors.teal)
+                : null,
+            onTap: () async {
+              Navigator.pop(context);
+              setState(() => selectedCity = city);
+              await CityStorage.save(city);
+              fetchPrayerTimes();
+              fetchWeather();
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+
+  // ================= VERSET =================
   Future<void> fetchRandomVerse() async {
     currentAyah = Random().nextInt(6236) + 1;
+
     try {
       final res = await http.get(
         Uri.parse("https://api.alquran.cloud/v1/ayah/$currentAyah"),
@@ -105,22 +169,19 @@ class _HomePageState extends State<HomePage> {
           ayahNumber = d["numberInSurah"];
         });
       }
-    } catch (e) {
-      verse = "Erreur de chargement du verset";
+    } catch (_) {
+      setState(() => verse = "Erreur de chargement du verset");
     }
   }
 
   Future<void> playAudio() async {
     final url =
         "https://cdn.islamic.network/quran/audio/128/ar.alafasy/$currentAyah.mp3";
-
     try {
       await player.stop();
       await player.play(UrlSource(url));
       setState(() => isPlaying = true);
-    } catch (e) {
-      debugPrint("AUDIO ERROR => $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> pauseAudio() async {
@@ -134,40 +195,50 @@ class _HomePageState extends State<HomePage> {
     fetchRandomVerse();
   }
 
-  // =================== PRIÈRES ===================
+  // ================= PRIÈRES =================
   Future<void> fetchPrayerTimes() async {
     try {
       final res = await http.get(Uri.parse(
           "https://api.aladhan.com/v1/timingsByCity?city=$selectedCity&country=$country&method=2"));
 
       if (res.statusCode == 200) {
-        prayerTimes = jsonDecode(res.body)["data"]["timings"];
+        setState(() {
+          prayerTimes = jsonDecode(res.body)["data"]["timings"];
+        });
         computeNextPrayer();
+      } else {
+        setState(() => prayerTimes = {});
       }
-    } catch (e) {
-      debugPrint("PRAYER ERROR => $e");
+    } catch (_) {
+      setState(() => prayerTimes = {});
     }
-    setState(() {});
   }
 
   void computeNextPrayer() {
-    if (prayerTimes == null) return;
+    if (prayerTimes == null || prayerTimes!.isEmpty) return;
 
     final now = DateTime.now();
-    for (var p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
+
+    for (final p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
       final t = prayerTimes![p].split(":");
       final time = DateTime(
-          now.year, now.month, now.day, int.parse(t[0]), int.parse(t[1]));
+        now.year,
+        now.month,
+        now.day,
+        int.parse(t[0]),
+        int.parse(t[1]),
+      );
+
       if (time.isAfter(now)) {
-        nextPrayer = p;
-        countdown = time.difference(now);
+        setState(() => nextPrayer = p);
         return;
       }
     }
-    nextPrayer = "Fajr (demain)";
+
+    setState(() => nextPrayer = "Fajr (demain)");
   }
 
-  // =================== METEO ===================
+  // ================= MÉTÉO =================
   Future<void> fetchWeather() async {
     try {
       final geo = await http.get(Uri.parse(
@@ -182,14 +253,13 @@ class _HomePageState extends State<HomePage> {
       final w = await http.get(Uri.parse(
           "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"));
 
-      weather = jsonDecode(w.body)["current_weather"];
-    } catch (e) {
-      debugPrint("WEATHER ERROR => $e");
-    }
-    setState(() {});
+      setState(() {
+        weather = jsonDecode(w.body)["current_weather"];
+      });
+    } catch (_) {}
   }
 
-  // =================== UI ===================
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -208,9 +278,13 @@ class _HomePageState extends State<HomePage> {
         title: const Text("IslamicApp"),
         actions: [
           IconButton(
+            icon: const Icon(Icons.location_city),
+            onPressed: showCityPicker,
+          ),
+          IconButton(
             icon: const Icon(Icons.dark_mode),
             onPressed: widget.onToggleTheme,
-          )
+          ),
         ],
       ),
       body: pages[index],
@@ -227,21 +301,21 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget buildHome() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text("Bienvenue, ${widget.username} 👋",
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 20),
-        buildVerseCard(),
-        const SizedBox(height: 20),
-        buildPrayerCard(),
-        const SizedBox(height: 20),
-        buildWeatherCard(),
-      ],
-    );
-  }
+  Widget buildHome() => ListView(
+    padding: const EdgeInsets.all(20),
+    children: [
+      Text(
+        "Bienvenue, ${widget.username} 👋",
+        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 20),
+      buildVerseCard(),
+      const SizedBox(height: 20),
+      buildPrayerCard(),
+      const SizedBox(height: 20),
+      buildWeatherCard(),
+    ],
+  );
 
   Widget buildVerseCard() => Card(
     child: Padding(
@@ -251,17 +325,22 @@ class _HomePageState extends State<HomePage> {
         children: [
           const Text("📖 Verset du jour",
               style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
           Text(verse),
+          const SizedBox(height: 6),
           Text("Sourate $surahNumber — $surahName ($ayahNumber)"),
+          const SizedBox(height: 10),
           Row(
             children: [
               ElevatedButton(
-                  onPressed: isPlaying ? pauseAudio : playAudio,
-                  child: Text(isPlaying ? "Pause" : "Écouter")),
+                onPressed: isPlaying ? pauseAudio : playAudio,
+                child: Text(isPlaying ? "Pause" : "Écouter"),
+              ),
               const SizedBox(width: 10),
               ElevatedButton(
-                  onPressed: nextVerse,
-                  child: const Text("Autre verset")),
+                onPressed: nextVerse,
+                child: const Text("Autre verset"),
+              ),
             ],
           )
         ],
@@ -272,14 +351,15 @@ class _HomePageState extends State<HomePage> {
   Widget buildPrayerCard() => Card(
     child: Padding(
       padding: const EdgeInsets.all(18),
-      child: prayerTimes == null
-          ? const Text("Chargement des prières...")
+      child: prayerTimes == null || prayerTimes!.isEmpty
+          ? const Text("Horaires indisponibles")
           : Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("🕌 Horaires de prière"),
           ...["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
               .map((p) => Text("$p : ${prayerTimes![p]}")),
+          const SizedBox(height: 8),
           Text("Prochaine : $nextPrayer"),
         ],
       ),
@@ -290,9 +370,10 @@ class _HomePageState extends State<HomePage> {
     child: Padding(
       padding: const EdgeInsets.all(18),
       child: weather == null
-          ? const Text("Chargement météo...")
+          ? const Text("Météo indisponible")
           : Text(
-          "🌤 $selectedCity\nTempérature : ${weather!["temperature"]}°C\nVent : ${weather!["windspeed"]} km/h"),
+        "🌤 $selectedCity\nTempérature : ${weather!["temperature"]}°C\nVent : ${weather!["windspeed"]} km/h",
+      ),
     ),
   );
 }

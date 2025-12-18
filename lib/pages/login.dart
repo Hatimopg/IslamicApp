@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'register.dart';
-import 'home.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'register.dart';
+import 'home.dart';
 import '../utils/token_storage.dart';
 
 class LoginPage extends StatefulWidget {
@@ -24,15 +24,15 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController password = TextEditingController();
   bool loading = false;
 
+  final String baseUrl =
+      "https://exciting-learning-production-d784.up.railway.app";
+
   Future<void> login() async {
     setState(() => loading = true);
 
     try {
-      final url = Uri.parse(
-          "https://exciting-learning-production-d784.up.railway.app/login");
-
       final response = await http.post(
-        url,
+        Uri.parse("$baseUrl/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "username": username.text.trim(),
@@ -43,9 +43,8 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString("token", data["token"]);
-        await prefs.setInt("userId", data["userId"]);
+        // 🔥 STOCKAGE CENTRALISÉ DU TOKEN
+        await TokenStorage.save(data["token"]);
 
         widget.onLogin(data["userId"]);
 
@@ -56,18 +55,18 @@ class _LoginPageState extends State<LoginPage> {
               userId: data["userId"],
               username: data["username"],
               profile: data["profile"] != null && data["profile"] != ""
-                  ? "https://exciting-learning-production-d784.up.railway.app/uploads/${data["profile"]}"
+                  ? "$baseUrl/uploads/${data["profile"]}"
                   : "",
               onToggleTheme: widget.onToggleTheme,
             ),
           ),
         );
-    } else {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Identifiants incorrects")),
         );
       }
-    } catch (e) {
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Erreur de connexion au serveur")),
       );
@@ -82,7 +81,6 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.grey.shade100,
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -93,12 +91,10 @@ class _LoginPageState extends State<LoginPage> {
           )
         ],
       ),
-
       body: Center(
         child: Container(
           width: 420,
           padding: const EdgeInsets.all(32),
-
           decoration: BoxDecoration(
             color: isDark ? Colors.grey.shade900 : Colors.white,
             borderRadius: BorderRadius.circular(22),
@@ -111,7 +107,6 @@ class _LoginPageState extends State<LoginPage> {
                 )
             ],
           ),
-
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -123,9 +118,9 @@ class _LoginPageState extends State<LoginPage> {
                   color: isDark ? Colors.purpleAccent : Colors.purple,
                 ),
               ),
-
               const SizedBox(height: 30),
 
+              // ---------- USERNAME ----------
               TextField(
                 controller: username,
                 style: TextStyle(color: isDark ? Colors.white : Colors.black),
@@ -146,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 14),
 
+              // ---------- PASSWORD ----------
               TextField(
                 controller: password,
                 obscureText: true,
@@ -192,8 +188,10 @@ class _LoginPageState extends State<LoginPage> {
                 child: Text(
                   "Créer un compte",
                   style: TextStyle(
-                      color:
-                      isDark ? Colors.purpleAccent : Colors.teal.shade700),
+                    color: isDark
+                        ? Colors.purpleAccent
+                        : Colors.teal.shade700,
+                  ),
                 ),
               ),
             ],

@@ -35,6 +35,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (token == null) {
         debugPrint("NO TOKEN");
+        setState(() => loading = false); // 🔥 FIX
         return;
       }
 
@@ -44,9 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
           "Authorization": "Bearer $token",
         },
       );
-
-      debugPrint("PROFILE STATUS => ${res.statusCode}");
-      debugPrint("PROFILE BODY => ${res.body}");
 
       if (res.statusCode == 200) {
         user = jsonDecode(res.body);
