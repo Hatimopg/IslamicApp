@@ -83,7 +83,7 @@ class _HomePageState extends State<HomePage> {
 
     // 2️⃣ sinon via profil
     try {
-      final token = await TokenStorage.get();
+      final token = await TokenStorage.getToken();
 
       if (token == null) throw Exception("NO TOKEN");
 

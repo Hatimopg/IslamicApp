@@ -43,8 +43,8 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // 🔥 STOCKAGE CENTRALISÉ DU TOKEN
-        await TokenStorage.save(data["token"]);
+        // 🔥 SAUVEGARDE TOKEN + USERID
+        await TokenStorage.save(data["token"], data["userId"]);
 
         widget.onLogin(data["userId"]);
 
@@ -98,14 +98,6 @@ class _LoginPageState extends State<LoginPage> {
           decoration: BoxDecoration(
             color: isDark ? Colors.grey.shade900 : Colors.white,
             borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              if (!isDark)
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                )
-            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -120,59 +112,25 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 30),
 
-              // ---------- USERNAME ----------
               TextField(
                 controller: username,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: InputDecoration(
-                  labelText: "Nom d'utilisateur",
-                  labelStyle: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black87),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.white54 : Colors.grey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.purpleAccent : Colors.teal),
-                  ),
-                ),
+                decoration:
+                const InputDecoration(labelText: "Nom d'utilisateur"),
               ),
-
               const SizedBox(height: 14),
-
-              // ---------- PASSWORD ----------
               TextField(
                 controller: password,
                 obscureText: true,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: InputDecoration(
-                  labelText: "Mot de passe",
-                  labelStyle: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black87),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.white54 : Colors.grey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.purpleAccent : Colors.teal),
-                  ),
-                ),
+                decoration:
+                const InputDecoration(labelText: "Mot de passe"),
               ),
 
               const SizedBox(height: 26),
 
               loading
-                  ? const CircularProgressIndicator(color: Colors.teal)
+                  ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  isDark ? Colors.purpleAccent : Colors.teal,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 40, vertical: 14),
-                ),
                 child: const Text("Se connecter"),
               ),
 
@@ -185,14 +143,7 @@ class _LoginPageState extends State<LoginPage> {
                     MaterialPageRoute(builder: (_) => RegisterPage()),
                   );
                 },
-                child: Text(
-                  "Créer un compte",
-                  style: TextStyle(
-                    color: isDark
-                        ? Colors.purpleAccent
-                        : Colors.teal.shade700,
-                  ),
-                ),
+                child: const Text("Créer un compte"),
               ),
             ],
           ),

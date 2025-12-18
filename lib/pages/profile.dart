@@ -10,7 +10,7 @@ import '../utils/token_storage.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
-  const ProfilePage({required this.userId});
+  const ProfilePage({super.key, required this.userId});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -29,13 +29,14 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfile();
   }
 
+  // ================= LOAD PROFILE =================
   Future<void> loadProfile() async {
     try {
-      final token = await TokenStorage.get();
+      final token = await TokenStorage.getToken();
 
       if (token == null) {
         debugPrint("NO TOKEN");
-        setState(() => loading = false); // 🔥 FIX
+        setState(() => loading = false);
         return;
       }
 
@@ -56,9 +57,9 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => loading = false);
   }
 
-
+  // ================= UPLOAD AVATAR =================
   Future<void> pickImageAndUpload() async {
-    final token = await TokenStorage.get();
+    final token = await TokenStorage.getToken();
     if (token == null) return;
 
     final picker = ImagePicker();
@@ -98,10 +99,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-
+  // ================= LOGOUT =================
   Future<void> logout() async {
     try {
-      final token = await TokenStorage.get();
+      final token = await TokenStorage.getToken();
 
       await http.post(
         Uri.parse("$baseUrl/logout"),
@@ -126,10 +127,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (user == null) {
       return const Center(child: Text("Impossible de charger le profil"));
     }
@@ -151,6 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // -------- AVATAR --------
             Stack(
               alignment: Alignment.bottomRight,
               children: [
@@ -158,34 +163,61 @@ class _ProfilePageState extends State<ProfilePage> {
                 IconButton(
                   icon: const Icon(Icons.camera_alt),
                   onPressed: pickImageAndUpload,
-                )
+                ),
               ],
             ),
+
             const SizedBox(height: 20),
-            Text(username,
-                style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+
+            Text(
+              username,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
             const SizedBox(height: 20),
+
             infoRow("Pays", country),
             infoRow("Région", region),
             infoRow("Naissance", birth),
+
             const SizedBox(height: 30),
+
+            // -------- CHANGE PASSWORD --------
             ElevatedButton(
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            ChangePasswordPage(userId: widget.userId))),
-                child: const Text("Modifier le mot de passe")),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ChangePasswordPage(userId: widget.userId),
+                ),
+              ),
+              child: const Text("Modifier le mot de passe"),
+            ),
+
+            const SizedBox(height: 12),
+
+            // -------- LOGOUT --------
             ElevatedButton(
-                onPressed: logout, child: const Text("Se déconnecter")),
+              onPressed: logout,
+              child: const Text("Se déconnecter"),
+            ),
+
+            const SizedBox(height: 12),
+
+            // -------- DELETE ACCOUNT --------
             ElevatedButton(
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            DeleteAccountPage(userId: widget.userId))),
-                child: const Text("Supprimer mon compte")),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      DeleteAccountPage(userId: widget.userId),
+                ),
+              ),
+              child: const Text("Supprimer mon compte"),
+            ),
           ],
         ),
       ),
@@ -195,11 +227,15 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget infoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        Text("$label : ",
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        Text(value),
-      ]),
+      child: Row(
+        children: [
+          Text(
+            "$label : ",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(value),
+        ],
+      ),
     );
   }
 }
