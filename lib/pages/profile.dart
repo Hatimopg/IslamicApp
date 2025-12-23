@@ -41,7 +41,7 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       final res = await http.get(
-        Uri.parse("$baseUrl/profile/${widget.userId}"),
+        Uri.parse("$baseUrl/profile"),
         headers: {
           "Authorization": "Bearer $token",
         },
