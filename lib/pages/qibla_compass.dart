@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
@@ -11,34 +12,72 @@ class QiblaCompassPage extends StatefulWidget {
 }
 
 class _QiblaCompassPageState extends State<QiblaCompassPage> {
-  double? direction; // direction du téléphone
+  double? direction; // direction téléphone
   double? qiblaDirection;
+  bool error = false;
+  String errorMessage = "Initialisation…";
 
   static const double kaabaLat = 21.4225;
   static const double kaabaLon = 39.8262;
 
+  StreamSubscription? compassSub;
+
   @override
   void initState() {
     super.initState();
-    initLocation();
-    FlutterCompass.events?.listen((event) {
-      setState(() => direction = event.heading);
+    initAll();
+
+    // ⏱️ timeout sécurité (anti loader infini)
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted && (direction == null || qiblaDirection == null)) {
+        setError("Boussole non disponible sur cet appareil.");
+      }
     });
   }
 
-  Future<void> initLocation() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) return;
+  Future<void> initAll() async {
+    try {
+      // 📍 Permission localisation
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
 
-    final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setError("Permission de localisation refusée.");
+        return;
+      }
 
-    setState(() {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
       qiblaDirection = calculateQibla(
         pos.latitude,
         pos.longitude,
       );
+
+      // 🧭 Capteur boussole
+      compassSub = FlutterCompass.events?.listen((event) {
+        if (event.heading == null) {
+          setError("Capteur de boussole indisponible.");
+          return;
+        }
+
+        setState(() {
+          direction = event.heading;
+        });
+      });
+    } catch (e) {
+      setError("Erreur lors de l’accès aux capteurs.");
+    }
+  }
+
+  void setError(String msg) {
+    setState(() {
+      error = true;
+      errorMessage = msg;
     });
   }
 
@@ -57,7 +96,31 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
   }
 
   @override
+  void dispose() {
+    compassSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // ❌ ERREUR
+    if (error) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Boussole Qibla")),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ⏳ CHARGEMENT
     if (direction == null || qiblaDirection == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -66,6 +129,7 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
 
     final angle = qiblaDirection! - direction!;
 
+    // ✅ OK
     return Scaffold(
       appBar: AppBar(title: const Text("Boussole Qibla")),
       body: Center(
@@ -81,8 +145,8 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
               angle: angle * pi / 180,
               child: const Icon(
                 Icons.navigation,
-                size: 200,
-                color: Colors.green,
+                size: 180,
+                color: Colors.deepPurple,
               ),
             ),
             const SizedBox(height: 20),
