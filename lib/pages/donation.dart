@@ -55,11 +55,13 @@ class DonationPage extends StatelessWidget {
             title: "Malteser INTL",
             subtitle: "Enfants victimes de conflits armés",
             url: "https://www.malteser-international.org/fr/sur-le-terrain/afrique/rd-congo.html",
+            urgent: true,
           ),
           donationTile(
             title: "Médecins du Monde – RDC",
             subtitle: "Soins médicaux et épidémies",
             url: "https://www.medecinsdumonde.org/pays/afrique/republique-democratique-du-congo/",
+            urgent: true,
           ),
 
           section("AUTRES"),
@@ -80,7 +82,7 @@ class DonationPage extends StatelessWidget {
           ),
           donationTile(
               title: "Croix-Rouge",
-              subtitle:"Donnation de sanf en Belgique",
+              subtitle:"Donnation de sang en Belgique",
               url: "https://www.donneurdesang.be/")
         ],
       ),
