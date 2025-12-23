@@ -289,6 +289,36 @@ app.post("/upload-profile", auth, upload.single("profile"), async (req, res) => 
   res.json({ success: true });
 });
 
+
+/* ============================================================
+   PROFILE (JWT – SANS ID DANS L’URL)
+=============================================================== */
+app.get("/profile", auth, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      "SELECT id, username, country, region, birthdate, profile FROM users WHERE id = ?",
+      [req.userId]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ error: "User not found" });
+
+    const u = rows[0];
+
+    res.json({
+      id: u.id,
+      username: u.username,
+      country: u.country,
+      region: u.region,
+      birthdate: u.birthdate,
+      profile: u.profile ?? "",
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 /* ============================================================
    START SERVER
 =============================================================== */
