@@ -11,6 +11,7 @@ import '../utils/token_storage.dart';
 import 'community_chat.dart';
 import 'private_users.dart';
 import 'profile.dart';
+import 'qibla_compass.dart';
 
 class HomePage extends StatefulWidget {
   final int userId;
@@ -270,8 +271,10 @@ class _HomePageState extends State<HomePage> {
         profile: widget.profile,
       ),
       PrivateUsersPage(myId: widget.userId),
+      const QiblaCompassPage(),
       ProfilePage(userId: widget.userId),
     ];
+
 
     return Scaffold(
       appBar: AppBar(
@@ -295,6 +298,7 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(icon: Icon(Icons.home), label: "Accueil"),
           NavigationDestination(icon: Icon(Icons.group), label: "Communauté"),
           NavigationDestination(icon: Icon(Icons.chat), label: "Privé"),
+          NavigationDestination(icon: Icon(Icons.explore), label: "Qibla"),
           NavigationDestination(icon: Icon(Icons.person), label: "Profil"),
         ],
       ),
