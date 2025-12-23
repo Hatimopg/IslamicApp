@@ -191,7 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
-                      ChangePasswordPage(userId: widget.userId),
+                      ChangePasswordPage(),
                 ),
               ),
               child: const Text("Modifier le mot de passe"),

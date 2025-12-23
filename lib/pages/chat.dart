@@ -1,149 +1,205 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class ChatPage extends StatefulWidget {
-  final int userId;
-  final String username;
-  final String profileUrl;
+import 'register.dart';
+import 'home.dart';
+import '../utils/token_storage.dart';
 
-  ChatPage({
-    required this.userId,
-    required this.username,
-    required this.profileUrl,
+class LoginPage extends StatefulWidget {
+  final Function(int userId) onLogin;
+  final VoidCallback onToggleTheme;
+
+  const LoginPage({
+    required this.onLogin,
+    required this.onToggleTheme,
   });
 
   @override
-  _ChatPageState createState() => _ChatPageState();
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  final TextEditingController messageController = TextEditingController();
+class _LoginPageState extends State<LoginPage> {
+  TextEditingController username = TextEditingController();
+  TextEditingController password = TextEditingController();
+  TextEditingController captchaCtrl = TextEditingController();
 
-  void sendMessage() {
-    if (messageController.text.trim().isEmpty) return;
+  bool loading = false;
+  bool passwordVisible = false;
 
-    FirebaseFirestore.instance.collection("community_messages").add({
-      "message": messageController.text.trim(),
-      "sender_id": widget.userId,
-      "username": widget.username,
-      "profile": widget.profileUrl,
-      "timestamp": FieldValue.serverTimestamp(),
+  // CAPTCHA IMAGE
+  bool showCaptcha = false;
+  late Image captchaImage;
+
+  final String baseUrl =
+      "https://exciting-learning-production-d784.up.railway.app";
+
+  // ----------------------------------------------------------
+  // LOAD CAPTCHA IMAGE
+  // ----------------------------------------------------------
+  void loadCaptcha() {
+    setState(() {
+      captchaImage = Image.network(
+        "$baseUrl/captcha-image?${DateTime.now().millisecondsSinceEpoch}",
+        height: 60,
+      );
+      showCaptcha = true;
     });
-
-    messageController.clear();
   }
 
-  ImageProvider getProfileImage(String? url) {
-    if (url == null || url.isEmpty || !url.contains(".")) {
-      return const AssetImage("assets/default.jpg");
+  // ----------------------------------------------------------
+  // LOGIN
+  // ----------------------------------------------------------
+  Future<void> login() async {
+    if (username.text.trim().isEmpty ||
+        password.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Veuillez remplir tous les champs")),
+      );
+      return;
     }
-    return NetworkImage(url);
+
+    setState(() => loading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "username": username.text.trim(),
+          "password": password.text.trim(),
+          "captcha": captchaCtrl.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        await TokenStorage.save(data["token"], data["userId"]);
+
+        setState(() {
+          showCaptcha = false;
+          captchaCtrl.clear();
+        });
+
+        widget.onLogin(data["userId"]);
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomePage(
+              userId: data["userId"],
+              username: data["username"],
+              profile: data["profile"] != null && data["profile"] != ""
+                  ? "$baseUrl/uploads/${data["profile"]}"
+                  : "",
+              onToggleTheme: widget.onToggleTheme,
+            ),
+          ),
+        );
+      } else if (response.statusCode == 429 ||
+          response.body.contains("Captcha")) {
+        loadCaptcha();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Sécurité activée. Résous le captcha."),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Identifiants incorrects")),
+        );
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur serveur")),
+      );
+    }
+
+    setState(() => loading = false);
   }
 
+  // ----------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Communauté")),
-
-      body: Column(
-        children: [
-          // ------------------ MESSAGE LIST ------------------
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("community_messages")
-                  .orderBy("timestamp", descending: false)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final messages = snapshot.data!.docs;
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final data = messages[index].data() as Map<String, dynamic>;
-
-                    final msg = data["message"] ?? "";
-                    final username = data["username"] ?? "Utilisateur";
-                    final profile = data["profile"];
-
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: getProfileImage(profile),
-                        ),
-                        title: Text(
-                          username,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        subtitle: Text(
-                          msg,
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[300] : Colors.grey[800],
-                          ),
-                        ),
-                        tileColor: isDark
-                            ? Colors.teal.withOpacity(0.25)
-                            : Colors.teal.shade50,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+      backgroundColor: isDark ? Colors.black : Colors.grey.shade100,
+      body: Center(
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade900 : Colors.white,
+            borderRadius: BorderRadius.circular(22),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "IslamicApp",
+                style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
 
-          // ------------------ INPUT BAR ------------------
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey[900] : Colors.grey.shade200,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: messageController,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Écrire un message...",
-                      hintStyle: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      ),
-                      filled: true,
-                      fillColor: isDark ? Colors.grey[850] : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+              TextField(
+                controller: username,
+                decoration:
+                const InputDecoration(labelText: "Nom d'utilisateur"),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: password,
+                obscureText: !passwordVisible,
+                decoration: InputDecoration(
+                  labelText: "Mot de passe",
+                  suffixIcon: IconButton(
+                    icon: Icon(passwordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off),
+                    onPressed: () =>
+                        setState(() => passwordVisible = !passwordVisible),
                   ),
                 ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: sendMessage,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.teal,
-                    child: const Icon(Icons.send, color: Colors.white),
-                  ),
+              ),
+
+              if (showCaptcha) ...[
+                const SizedBox(height: 16),
+                captchaImage,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: captchaCtrl,
+                  decoration:
+                  const InputDecoration(labelText: "Captcha"),
                 ),
               ],
-            ),
+
+              const SizedBox(height: 26),
+
+              loading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                onPressed: login,
+                child: const Text("Se connecter"),
+              ),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => RegisterPage()),
+                  );
+                },
+                child: const Text("Créer un compte"),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

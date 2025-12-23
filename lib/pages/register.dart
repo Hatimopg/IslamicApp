@@ -14,6 +14,14 @@ class _RegisterState extends State<RegisterPage> {
 
   bool loading = false;
 
+  // 🔐 AJOUT
+  bool passwordVisible = false;
+  String? passwordError;
+
+  final RegExp passwordRegex = RegExp(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
+  );
+
   String selectedCountry = "Belgique";
   String selectedRegion = "Bruxelles";
 
@@ -51,6 +59,17 @@ class _RegisterState extends State<RegisterPage> {
   };
 
   Future<void> registerUser() async {
+    // 🔐 CHECK MDP AVANT ENVOI
+    if (!passwordRegex.hasMatch(password.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "Mot de passe trop faible (8 caractères, maj, min, chiffre, spécial)"),
+        ),
+      );
+      return;
+    }
+
     setState(() => loading = true);
 
     try {
@@ -79,7 +98,7 @@ class _RegisterState extends State<RegisterPage> {
           const SnackBar(content: Text("Erreur lors de l'inscription")),
         );
       }
-    } catch (e) {
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Erreur de connexion au serveur")),
       );
@@ -120,31 +139,46 @@ class _RegisterState extends State<RegisterPage> {
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: "Nom d'utilisateur",
-                labelStyle: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87),
+                labelStyle:
+                TextStyle(color: isDark ? Colors.white70 : Colors.black87),
                 enabledBorder: OutlineInputBorder(
-                    borderSide:
-                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
-                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
             const SizedBox(height: 12),
 
-            // ------------------ PASSWORD ------------------
+            // ------------------ PASSWORD (SÉCURISÉ) ------------------
             TextField(
               controller: password,
-              obscureText: true,
+              obscureText: !passwordVisible,
+              onChanged: (v) {
+                setState(() {
+                  passwordError = passwordRegex.hasMatch(v)
+                      ? null
+                      : "8 caractères, maj, min, chiffre, spécial";
+                });
+              },
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: "Mot de passe",
-                labelStyle: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87),
+                errorText: passwordError,
+                labelStyle:
+                TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+                suffixIcon: IconButton(
+                  icon: Icon(passwordVisible
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () =>
+                      setState(() => passwordVisible = !passwordVisible),
+                ),
                 enabledBorder: OutlineInputBorder(
-                    borderSide:
-                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
-                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
@@ -158,13 +192,13 @@ class _RegisterState extends State<RegisterPage> {
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: "Date de naissance",
-                labelStyle: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87),
+                labelStyle:
+                TextStyle(color: isDark ? Colors.white70 : Colors.black87),
                 suffixIcon: const Icon(Icons.calendar_month),
                 enabledBorder: OutlineInputBorder(
-                    borderSide:
-                    BorderSide(color: isDark ? Colors.white54 : Colors.grey)),
-                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white54 : Colors.grey)),
+                focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.teal)),
               ),
               onTap: pickBirthdate,
@@ -173,15 +207,13 @@ class _RegisterState extends State<RegisterPage> {
             const SizedBox(height: 20),
 
             // ------------------ COUNTRY ------------------
-            Text(
-              "Pays :",
-              style:
-              TextStyle(color: isDark ? Colors.white : Colors.black),
-            ),
+            Text("Pays :",
+                style:
+                TextStyle(color: isDark ? Colors.white : Colors.black)),
             const SizedBox(height: 5),
 
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(10),
@@ -190,10 +222,10 @@ class _RegisterState extends State<RegisterPage> {
                 value: selectedCountry,
                 dropdownColor:
                 isDark ? Colors.grey.shade900 : Colors.white,
-                underline: SizedBox(),
+                underline: const SizedBox(),
                 isExpanded: true,
-                style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black),
+                style:
+                TextStyle(color: isDark ? Colors.white : Colors.black),
                 items: regions.keys
                     .map((c) =>
                     DropdownMenuItem(value: c, child: Text(c)))
@@ -210,15 +242,13 @@ class _RegisterState extends State<RegisterPage> {
             const SizedBox(height: 12),
 
             // ------------------ REGION ------------------
-            Text(
-              "Région :",
-              style:
-              TextStyle(color: isDark ? Colors.white : Colors.black),
-            ),
+            Text("Région :",
+                style:
+                TextStyle(color: isDark ? Colors.white : Colors.black)),
             const SizedBox(height: 5),
 
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(10),
@@ -227,10 +257,10 @@ class _RegisterState extends State<RegisterPage> {
                 value: selectedRegion,
                 dropdownColor:
                 isDark ? Colors.grey.shade900 : Colors.white,
-                underline: SizedBox(),
+                underline: const SizedBox(),
                 isExpanded: true,
-                style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black),
+                style:
+                TextStyle(color: isDark ? Colors.white : Colors.black),
                 items: regions[selectedCountry]!
                     .map((r) =>
                     DropdownMenuItem(value: r, child: Text(r)))

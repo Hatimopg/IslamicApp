@@ -22,12 +22,23 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   TextEditingController username = TextEditingController();
   TextEditingController password = TextEditingController();
+
   bool loading = false;
+
+  // 🔐 AJOUT
+  bool passwordVisible = false;
 
   final String baseUrl =
       "https://exciting-learning-production-d784.up.railway.app";
 
   Future<void> login() async {
+    if (username.text.trim().isEmpty || password.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Veuillez remplir tous les champs")),
+      );
+      return;
+    }
+
     setState(() => loading = true);
 
     try {
@@ -59,6 +70,14 @@ class _LoginPageState extends State<LoginPage> {
                   : "",
               onToggleTheme: widget.onToggleTheme,
             ),
+          ),
+        );
+      } else if (response.statusCode == 429) {
+        // 🔥 RATE LIMIT
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+            Text("Trop de tentatives. Réessayez dans quelques minutes."),
           ),
         );
       } else {
@@ -117,12 +136,22 @@ class _LoginPageState extends State<LoginPage> {
                 decoration:
                 const InputDecoration(labelText: "Nom d'utilisateur"),
               ),
+
               const SizedBox(height: 14),
+
               TextField(
                 controller: password,
-                obscureText: true,
-                decoration:
-                const InputDecoration(labelText: "Mot de passe"),
+                obscureText: !passwordVisible,
+                decoration: InputDecoration(
+                  labelText: "Mot de passe",
+                  suffixIcon: IconButton(
+                    icon: Icon(passwordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off),
+                    onPressed: () =>
+                        setState(() => passwordVisible = !passwordVisible),
+                  ),
+                ),
               ),
 
               const SizedBox(height: 26),
