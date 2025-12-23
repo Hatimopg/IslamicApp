@@ -29,38 +29,37 @@ class DonationPage extends StatelessWidget {
             urgent: true,
           ),
           donationTile(
-            title: "Islamic Relief – Palestine",
+            title: "Human Appeal – Palestine",
             subtitle: "Aide humanitaire et alimentaire",
             url:
-            "https://www.islamic-relief.org/emergencies/palestine/",
+            "https://humanappeal.fr/appels-aux-dons/urgence-gaza",
             urgent: true,
           ),
 
           section("SOUDAN", urgent: true),
           donationTile(
-            title: "Islamic Relief – Soudan",
+            title: "UNICEF – Soudan",
             subtitle: "Crise humanitaire et famine",
-            url:
-            "https://www.islamic-relief.org/emergencies/sudan/",
+            url: "https://www.unicef.fr/actions-humanitaires/moyen-orient-afrique-nord/notre-action-humanitaire-au-soudan/",
             urgent: true,
           ),
           donationTile(
-            title: "UNICEF – Soudan",
-            subtitle: "Protection des enfants déplacés",
-            url: "https://www.unicef.org/emergencies/sudan",
+            title: "HumanAppeal",
+            subtitle: "Aide - Sauver le Soudan",
+            url: "https://humanappeal.fr/appels-aux-dons/crise-au-soudan",
             urgent: true,
           ),
 
           section("RDC"),
           donationTile(
-            title: "UNICEF – RDC",
+            title: "Malteser INTL",
             subtitle: "Enfants victimes de conflits armés",
-            url: "https://www.unicef.org/drc",
+            url: "https://www.malteser-international.org/fr/sur-le-terrain/afrique/rd-congo.html",
           ),
           donationTile(
-            title: "Médecins Sans Frontières – RDC",
+            title: "Médecins du Monde – RDC",
             subtitle: "Soins médicaux et épidémies",
-            url: "https://donate.msf.org",
+            url: "https://www.medecinsdumonde.org/pays/afrique/republique-democratique-du-congo/",
           ),
 
           section("AUTRES"),
@@ -74,6 +73,15 @@ class DonationPage extends StatelessWidget {
             subtitle: "Lutte contre la famine",
             url: "https://www.actionagainsthunger.org",
           ),
+          donationTile(
+            title: "Bruxelles <3",
+            subtitle: "Dons de sang et organes en Belgique",
+            url: "https://be.brussels/fr/aide-social-sante/sante/dons-de-sang-et-dorganes",
+          ),
+          donationTile(
+              title: "Croix-Rouge",
+              subtitle:"Donnation de sanf en Belgique",
+              url: "https://www.donneurdesang.be/")
         ],
       ),
     );
