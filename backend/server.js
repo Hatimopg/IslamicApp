@@ -47,16 +47,19 @@ const passwordRegex =
 /* ============================================================
    FIREBASE INIT
 =============================================================== */
-if (!process.env.FIREBASE_JSON) {
-  logError("❌ FIREBASE_JSON missing");
+if (!process.env.FIREBASE_JSON_BASE64) {
+  console.error("❌ FIREBASE_JSON_BASE64 missing");
   process.exit(1);
 }
 
+const firebaseJson = Buffer
+  .from(process.env.FIREBASE_JSON_BASE64, "base64")
+  .toString("utf8");
+
 admin.initializeApp({
-  credential: admin.credential.cert(
-    JSON.parse(process.env.FIREBASE_JSON)
-  ),
+  credential: admin.credential.cert(JSON.parse(firebaseJson)),
 });
+
 
 const firestore = admin.firestore();
 
