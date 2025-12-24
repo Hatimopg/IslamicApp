@@ -186,7 +186,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
             // 🔥 Message dynamique
             Text(
               newRecord
-                  ? "🔥 Nouveau record, ماشاالله !"
+                  ? "🔥 Nouveau record !"
                   : "💪 Bien joué, continue !",
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -243,10 +243,23 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: btnColor(i)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: btnColor(i),
+                      foregroundColor: Colors.white, // ✅ TEXTE BLANC
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
                     onPressed: () => answer(i),
-                    child: Text(currentQuestion["a"][i]),
-                  ),
+                    child: Text(
+                      currentQuestion["a"][i],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
                 ),
               ),
             ),

@@ -50,11 +50,12 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
   // ================= PROFILE IMAGE =================
   ImageProvider getProfileImage(String? url) {
-    if (url == null || url.isEmpty || !url.contains(".")) {
+    if (url == null || url.isEmpty || !url.startsWith("http")) {
       return const AssetImage("assets/default.jpg");
     }
     return NetworkImage(url);
   }
+
 
   @override
   void dispose() {

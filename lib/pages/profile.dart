@@ -145,9 +145,16 @@ class _ProfilePageState extends State<ProfilePage> {
         ? user!["birthdate"].toString().split("T")[0]
         : "—";
 
-    final img = (user!["profile"] != null && user!["profile"] != "")
-        ? NetworkImage("$baseUrl/uploads/${user!["profile"]}")
-        : const AssetImage("assets/default.jpg") as ImageProvider;
+    ImageProvider img;
+
+    final profile = user!["profile"];
+
+    if (profile != null && profile is String && profile.startsWith("http")) {
+      img = NetworkImage(profile);
+    } else {
+      img = const AssetImage("assets/default.jpg");
+    }
+
 
     return Scaffold(
       appBar: AppBar(title: const Text("Profil")),

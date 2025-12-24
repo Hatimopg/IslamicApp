@@ -65,9 +65,7 @@ class _LoginPageState extends State<LoginPage> {
             builder: (_) => HomePage(
               userId: data["userId"],
               username: data["username"],
-              profile: data["profile"] != null && data["profile"] != ""
-                  ? "$baseUrl/uploads/${data["profile"]}"
-                  : "",
+              profile: data["profile"] ?? "",
               onToggleTheme: widget.onToggleTheme,
             ),
           ),

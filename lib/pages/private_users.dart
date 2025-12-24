@@ -7,9 +7,6 @@ class PrivateUsersPage extends StatelessWidget {
 
   PrivateUsersPage({required this.myId});
 
-  final String baseUrl =
-      "https://exciting-learning-production-d784.up.railway.app/uploads/";
-
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -39,8 +36,8 @@ class PrivateUsersPage extends StatelessWidget {
 
             final rawProfile = u["profile"];
             final String? profileUrl =
-            (rawProfile != null && rawProfile != "")
-                ? baseUrl + rawProfile
+            (rawProfile != null && rawProfile is String && rawProfile.startsWith("http"))
+                ? rawProfile
                 : null;
 
             final bool isOnline = u["isOnline"] == true;

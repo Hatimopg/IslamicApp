@@ -114,11 +114,14 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
   // ================= PROFILE IMAGE =================
   ImageProvider getProfileImage() {
-    if (widget.otherProfile == null || widget.otherProfile!.isEmpty) {
+    if (widget.otherProfile == null ||
+        widget.otherProfile!.isEmpty ||
+        !widget.otherProfile!.startsWith("http")) {
       return const AssetImage("assets/default.jpg");
     }
     return NetworkImage(widget.otherProfile!);
   }
+
 
   // ================= MESSAGE BUBBLE =================
   Widget messageBubble(Map<String, dynamic> m) {
