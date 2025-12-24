@@ -4,10 +4,11 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import admin from "firebase-admin";
 import svgCaptcha from "svg-captcha";
+
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 import { db } from "./db.js";
 import { auth } from "./auth.js";
@@ -16,10 +17,26 @@ import { logError } from "./logger.js";
 dotenv.config();
 
 /* ============================================================
+   EXPRESS INIT
+=============================================================== */
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+/* ============================================================
+   CLOUDINARY CONFIG
+=============================================================== */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
+});
+
+/* ============================================================
    MEMORY STORES
 =============================================================== */
-const loginAttempts = new Map(); // ip -> { count, blockedUntil }
-const captchaStore = new Map();  // ip -> { text, expires }
+const loginAttempts = new Map();
+const captchaStore = new Map();
 
 /* ============================================================
    PASSWORD REGEX
@@ -44,15 +61,7 @@ admin.initializeApp({
 const firestore = admin.firestore();
 
 /* ============================================================
-   EXPRESS INIT
-=============================================================== */
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static("public"));
-
-/* ============================================================
-   CAPTCHA IMAGE (SVG)
+   CAPTCHA IMAGE
 =============================================================== */
 app.get("/captcha-image", (req, res) => {
   const ip = req.ip;
@@ -66,52 +75,43 @@ app.get("/captcha-image", (req, res) => {
 
   captchaStore.set(ip, {
     text: captcha.text.toLowerCase(),
-    expires: Date.now() + 2 * 60 * 1000, // 2 minutes
+    expires: Date.now() + 2 * 60 * 1000,
   });
 
-  res.type("svg");
-  res.status(200).send(captcha.data);
+  res.type("svg").status(200).send(captcha.data);
 });
 
 /* ============================================================
-   LOGIN (CAPTCHA IMAGE + DELAY ESCALATION)
+   LOGIN
 =============================================================== */
 app.post("/login", async (req, res) => {
   const { username, password, captcha } = req.body;
   const ip = req.ip;
   const now = Date.now();
 
-  // ⏱️ CHECK DELAY
   const attempt = loginAttempts.get(ip);
   if (attempt && attempt.blockedUntil > now) {
     const min = Math.ceil((attempt.blockedUntil - now) / 60000);
-    return res
-      .status(429)
-      .json({ error: `Réessaie dans ${min} minute(s)` });
+    return res.status(429).json({ error: `Réessaie dans ${min} minute(s)` });
   }
 
-  // 🔐 CAPTCHA CHECK (SI PRÉSENT)
   const captchaData = captchaStore.get(ip);
   if (captchaData) {
-    if (captchaData.expires < now) {
-      captchaStore.delete(ip);
+    if (captchaData.expires < now)
       return res.status(400).json({ error: "Captcha expiré" });
-    }
 
-    if (!captcha || captcha.toLowerCase() !== captchaData.text) {
+    if (!captcha || captcha.toLowerCase() !== captchaData.text)
       return res.status(400).json({ error: "Captcha incorrect" });
-    }
 
     captchaStore.delete(ip);
   }
 
-  // 🔎 USER CHECK
   const [rows] = await db.execute(
-    "SELECT * FROM users WHERE username = ?",
+    "SELECT * FROM users WHERE username=?",
     [username]
   );
 
-  if (rows.length === 0) {
+  if (!rows.length) {
     registerFail(ip);
     return res.status(400).json({ error: "Identifiants incorrects" });
   }
@@ -124,9 +124,7 @@ app.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Identifiants incorrects" });
   }
 
-  // ✅ SUCCESS → RESET SECURITY
   loginAttempts.delete(ip);
-  captchaStore.delete(ip);
 
   await firestore.collection("users").doc(user.id.toString()).update({
     isOnline: true,
@@ -148,35 +146,17 @@ app.post("/login", async (req, res) => {
 });
 
 /* ============================================================
-   FAIL HANDLER (DELAY + CAPTCHA)
+   FAIL HANDLER
 =============================================================== */
 function registerFail(ip) {
   const now = Date.now();
-  let entry = loginAttempts.get(ip) || { count: 0, blockedUntil: 0 };
+  const entry = loginAttempts.get(ip) || { count: 0, blockedUntil: 0 };
   entry.count++;
 
-  let delay;
-  if (entry.count === 1) delay = 5;
-  else if (entry.count === 2) delay = 15;
-  else if (entry.count === 3) delay = 30;
-  else delay = 60;
-
+  const delay = entry.count === 1 ? 5 : entry.count === 2 ? 15 : 30;
   entry.blockedUntil = now + delay * 60 * 1000;
+
   loginAttempts.set(ip, entry);
-
-  // 🔐 CAPTCHA AFTER 2 FAILS
-  if (entry.count >= 2) {
-    const captcha = svgCaptcha.create({
-      size: 5,
-      noise: 3,
-      color: true,
-    });
-
-    captchaStore.set(ip, {
-      text: captcha.text.toLowerCase(),
-      expires: now + 2 * 60 * 1000,
-    });
-  }
 }
 
 /* ============================================================
@@ -189,13 +169,15 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Mot de passe faible" });
 
   const [check] = await db.execute(
-    "SELECT id FROM users WHERE username = ?",
+    "SELECT id FROM users WHERE username=?",
     [username]
   );
-  if (check.length > 0)
+
+  if (check.length)
     return res.status(400).json({ error: "Username déjà utilisé" });
 
   const hash = await bcrypt.hash(password, 12);
+
   const [r] = await db.execute(
     `INSERT INTO users (username,password_hash,country,region,birthdate)
      VALUES (?,?,?,?,?)`,
@@ -215,112 +197,53 @@ app.post("/register", async (req, res) => {
 });
 
 /* ============================================================
-   CHANGE PASSWORD (JWT)
+   UPLOAD PROFILE (CLOUDINARY)
 =============================================================== */
-app.post("/change-password", auth, async (req, res) => {
-  const { old_password, new_password } = req.body;
-
-  if (!passwordRegex.test(new_password))
-    return res.status(400).json({ error: "Mot de passe faible" });
-
-  const [rows] = await db.execute(
-    "SELECT password_hash FROM users WHERE id = ?",
-    [req.userId]
-  );
-
-  const ok = await bcrypt.compare(old_password, rows[0].password_hash);
-  if (!ok)
-    return res.status(400).json({ error: "Ancien mot de passe incorrect" });
-
-  const hash = await bcrypt.hash(new_password, 12);
-  await db.execute(
-    "UPDATE users SET password_hash=? WHERE id=?",
-    [hash, req.userId]
-  );
-
-  res.json({ success: true });
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "profiles",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 256, height: 256, crop: "fill", gravity: "face" }],
+  },
 });
 
-/* ============================================================
-   DELETE ACCOUNT (JWT)
-=============================================================== */
-app.post("/delete-account", auth, async (req, res) => {
-  const { password, birthdate } = req.body;
-
-  const [rows] = await db.execute(
-    "SELECT password_hash,birthdate FROM users WHERE id=?",
-    [req.userId]
-  );
-
-  const ok = await bcrypt.compare(password, rows[0].password_hash);
-  if (!ok || rows[0].birthdate !== birthdate)
-    return res.status(400).json({ error: "Infos incorrectes" });
-
-  await db.execute("DELETE FROM users WHERE id=?", [req.userId]);
-  await firestore.collection("users").doc(req.userId.toString()).delete();
-
-  res.json({ success: true });
-});
-
-/* ============================================================
-   UPLOAD PROFILE
-=============================================================== */
-const uploadFolder = "uploads";
-if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder);
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_, __, cb) => cb(null, uploadFolder),
-    filename: (_, file, cb) =>
-      cb(null, Date.now() + "-" + file.originalname),
-  }),
-});
+const upload = multer({ storage });
 
 app.post("/upload-profile", auth, upload.single("profile"), async (req, res) => {
+  const imageUrl = req.file.path;
+
   await db.execute("UPDATE users SET profile=? WHERE id=?", [
-    req.file.filename,
+    imageUrl,
     req.userId,
   ]);
 
   await firestore.collection("users").doc(req.userId.toString()).update({
-    profile: req.file.filename,
+    profile: imageUrl,
   });
 
-  res.json({ success: true });
+  res.json({ success: true, profile: imageUrl });
 });
-
 
 /* ============================================================
-   PROFILE (JWT – SANS ID DANS L’URL)
+   PROFILE
 =============================================================== */
 app.get("/profile", auth, async (req, res) => {
-  try {
-    const [rows] = await db.execute(
-      "SELECT id, username, country, region, birthdate, profile FROM users WHERE id = ?",
-      [req.userId]
-    );
+  const [rows] = await db.execute(
+    "SELECT id,username,country,region,birthdate,profile FROM users WHERE id=?",
+    [req.userId]
+  );
 
-    if (rows.length === 0)
-      return res.status(404).json({ error: "User not found" });
+  if (!rows.length)
+    return res.status(404).json({ error: "User not found" });
 
-    const u = rows[0];
-
-    res.json({
-      id: u.id,
-      username: u.username,
-      country: u.country,
-      region: u.region,
-      birthdate: u.birthdate,
-      profile: u.profile ?? "",
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json(rows[0]);
 });
-
 
 /* ============================================================
    START SERVER
 =============================================================== */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Backend prêt sur port " + PORT));
+app.listen(PORT, () =>
+  console.log("🚀 Backend prêt sur port " + PORT)
+);
