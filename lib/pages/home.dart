@@ -13,6 +13,7 @@ import 'private_users.dart';
 import 'profile.dart';
 import 'qibla_compass.dart';
 import 'donation.dart';
+import 'islamic_quiz_page.dart';
 
 class HomePage extends StatefulWidget {
   final int userId;
@@ -265,17 +266,19 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      buildHome(),
+      buildHome(), // 0 Accueil
       CommunityChatPage(
         userId: widget.userId,
         username: widget.username,
         profile: widget.profile,
-      ),
-      PrivateUsersPage(myId: widget.userId),
-      const QiblaCompassPage(),
-      DonationPage(),
-      ProfilePage(userId: widget.userId),
+      ),            // 1 Communauté
+      PrivateUsersPage(myId: widget.userId), // 2 Privé
+      IslamicQuizPage(),  // 3 Jeu
+      const QiblaCompassPage(), // 4 Qibla
+      DonationPage(), // 5 Dons
+      ProfilePage(userId: widget.userId), // 6 Profil
     ];
+
 
 
     return Scaffold(
@@ -298,8 +301,9 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: "Accueil"),
-          NavigationDestination(icon: Icon(Icons.group), label: "Communauté"),
+          NavigationDestination(icon: Icon(Icons.group), label: "Publique"),
           NavigationDestination(icon: Icon(Icons.chat), label: "Privé"),
+          NavigationDestination(icon: Icon(Icons.games), label: "Jeu"),
           NavigationDestination(icon: Icon(Icons.explore), label: "Qibla"),
           NavigationDestination(icon: Icon(Icons.favorite), label: "Dons"),
           NavigationDestination(icon: Icon(Icons.person), label: "Profil"),

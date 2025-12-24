@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
@@ -12,32 +13,39 @@ class QiblaCompassPage extends StatefulWidget {
 }
 
 class _QiblaCompassPageState extends State<QiblaCompassPage> {
-  double? direction; // direction téléphone
-  double? qiblaDirection;
+  double? direction; // direction du téléphone (Nord magnétique)
+  double? qiblaDirection; // direction Qibla (Nord géographique)
   bool error = false;
   String errorMessage = "Initialisation…";
 
+  StreamSubscription<CompassEvent>? compassSub;
+
+  // Coordonnées de la Kaaba
   static const double kaabaLat = 21.4225;
   static const double kaabaLon = 39.8262;
-
-  StreamSubscription? compassSub;
 
   @override
   void initState() {
     super.initState();
     initAll();
 
-    // ⏱️ timeout sécurité (anti loader infini)
+    // ⏱️ Sécurité : éviter loader infini
     Future.delayed(const Duration(seconds: 6), () {
       if (mounted && (direction == null || qiblaDirection == null)) {
-        setError("Boussole non disponible sur cet appareil.");
+        setError("Boussole indisponible sur cet appareil.");
       }
     });
   }
 
   Future<void> initAll() async {
     try {
-      // 📍 Permission localisation
+      // ❌ Flutter Web : pas de boussole
+      if (kIsWeb) {
+        setError("La boussole n’est pas supportée sur le web.");
+        return;
+      }
+
+      // 📍 Permissions GPS
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -49,19 +57,20 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
+      // 📍 Position utilisateur
+      final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      // 🕋 Calcul Qibla
       qiblaDirection = calculateQibla(
-        pos.latitude,
-        pos.longitude,
+        position.latitude,
+        position.longitude,
       );
 
       // 🧭 Capteur boussole
       compassSub = FlutterCompass.events?.listen((event) {
         if (event.heading == null) {
-          setError("Capteur de boussole indisponible.");
           return;
         }
 
@@ -81,6 +90,7 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
     });
   }
 
+  // 🧮 Calcul angle Qibla
   double calculateQibla(double lat, double lon) {
     final latRad = lat * pi / 180;
     final lonRad = lon * pi / 180;
@@ -120,14 +130,15 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
       );
     }
 
-    // ⏳ CHARGEMENT
+    // ⏳ Chargement
     if (direction == null || qiblaDirection == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final angle = qiblaDirection! - direction!;
+    // 🔁 Angle final corrigé
+    final angle = (qiblaDirection! - direction! + 360) % 360;
 
     // ✅ OK
     return Scaffold(
@@ -141,18 +152,32 @@ class _QiblaCompassPageState extends State<QiblaCompassPage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
+
             Transform.rotate(
-              angle: angle * pi / 180,
+              angle: -angle * pi / 180, // ⬅️ IMPORTANT
               child: const Icon(
                 Icons.navigation,
                 size: 180,
                 color: Colors.deepPurple,
               ),
             ),
+
             const SizedBox(height: 20),
+
             Text(
               "${qiblaDirection!.toStringAsFixed(1)}°",
               style: const TextStyle(fontSize: 18),
+            ),
+
+            const SizedBox(height: 16),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                "Bougez le téléphone en forme de 8 pour calibrer la boussole",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
             ),
           ],
         ),
