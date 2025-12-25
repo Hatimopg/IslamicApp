@@ -90,18 +90,17 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     });
 
     chatRef.update({"typing_${widget.currentId}": false});
-
     msgCtrl.clear();
     scrollToBottom();
   }
 
-  // ================= AUTO SCROLL =================
+  // ================= SCROLL =================
   void scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollCtrl.hasClients) {
         scrollCtrl.animateTo(
-          scrollCtrl.position.minScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          0,
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
@@ -132,80 +131,108 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     return NetworkImage(widget.otherProfile!);
   }
 
+  // ================= DATE SEPARATOR =================
+  Widget dateSeparator(DateTime date) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade400,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            DateFormat("dd MMM yyyy").format(date),
+            style: const TextStyle(fontSize: 12, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ================= MESSAGE BUBBLE =================
-  Widget messageBubble(Map<String, dynamic> m) {
+  Widget messageBubble(Map<String, dynamic> m, bool showDate) {
     final bool isMe = m["from"] == widget.currentId;
     final String msg = m["text"] ?? "";
     final bool seen = m["seen"] == true;
 
-    final timestamp = m["timestamp"] != null
-        ? DateFormat("HH:mm").format(m["timestamp"].toDate())
-        : "";
+    final DateTime time = m["timestamp"] != null
+        ? m["timestamp"].toDate()
+        : DateTime.now();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isMe
-              ? Colors.teal
-              : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(
-              msg,
-              style: TextStyle(
-                color: isMe
-                    ? Colors.white
-                    : (isDark ? Colors.white : Colors.black),
-              ),
+    return Column(
+      children: [
+        if (showDate) dateSeparator(time),
+        Align(
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isMe
+                  ? Colors.teal
+                  : (isDark
+                  ? Colors.grey.shade800
+                  : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Column(
+              crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Text(
-                  timestamp,
+                  msg,
                   style: TextStyle(
-                    fontSize: 10,
                     color: isMe
-                        ? Colors.white70
-                        : (isDark ? Colors.white70 : Colors.black54),
+                        ? Colors.white
+                        : (isDark ? Colors.white : Colors.black),
                   ),
                 ),
-                if (isMe) ...[
-                  const SizedBox(width: 6),
-                  Icon(
-                    seen
-                        ? Icons.check_circle
-                        : Icons.check_circle_outline,
-                    size: 14,
-                    color: Colors.white70,
-                  ),
-                ]
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat("HH:mm").format(time),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isMe
+                            ? Colors.white70
+                            : (isDark
+                            ? Colors.white70
+                            : Colors.black54),
+                      ),
+                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        seen
+                            ? Icons.done_all
+                            : Icons.done,
+                        size: 14,
+                        color: seen
+                            ? Colors.lightGreenAccent
+                            : Colors.white70,
+                      ),
+                    ]
+                  ],
+                )
               ],
-            )
-          ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final chatRef =
     FirebaseFirestore.instance.collection("private_chats").doc(chatId);
 
@@ -225,6 +252,35 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
       ),
       body: Column(
         children: [
+          // ================= TYPING INDICATOR =================
+          StreamBuilder<DocumentSnapshot>(
+            stream: chatRef.snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData || !snap.data!.exists) {
+                return const SizedBox.shrink();
+              }
+
+              final data = snap.data!.data() as Map<String, dynamic>;
+              final bool otherTyping =
+                  data["typing_${widget.otherId}"] == true;
+
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: otherTyping
+                    ? Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Text(
+                    "${widget.otherName} écrit…",
+                    style: const TextStyle(
+                        fontStyle: FontStyle.italic),
+                  ),
+                )
+                    : const SizedBox.shrink(),
+              );
+            },
+          ),
+
+          // ================= MESSAGES =================
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: messagesRef.snapshots(),
@@ -235,7 +291,9 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                 }
 
                 final docs = snap.data!.docs;
-                scrollToBottom();
+                markMessagesAsSeen();
+
+                DateTime? lastDate;
 
                 return ListView.builder(
                   controller: scrollCtrl,
@@ -244,17 +302,24 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   itemBuilder: (_, i) {
                     final m =
                     docs[i].data() as Map<String, dynamic>;
-                    return messageBubble(m);
+                    final ts = m["timestamp"]?.toDate();
+                    final showDate = ts != null &&
+                        (lastDate == null ||
+                            !DateUtils.isSameDay(ts, lastDate!));
+                    lastDate = ts;
+
+                    return messageBubble(m, showDate);
                   },
                 );
               },
             ),
           ),
 
+          // ================= INPUT =================
           Container(
             padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: Theme.of(context).brightness == Brightness.dark
+            color: isDark
                 ? Colors.grey.shade900
                 : Colors.grey.shade200,
             child: Row(
@@ -262,7 +327,10 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                 Expanded(
                   child: TextField(
                     controller: msgCtrl,
-                    onChanged: (txt) => setTyping(txt.isNotEmpty),
+                    onChanged: (text) {
+                      setTyping(text.isNotEmpty);
+                      setState(() {}); // 🔥 OBLIGATOIRE POUR ACTIVER LE BOUTON
+                    },
                     decoration: const InputDecoration(
                       hintText: "Votre message...",
                       border: InputBorder.none,
@@ -270,8 +338,15 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Colors.teal),
-                  onPressed: sendMessage,
+                  icon: Icon(
+                    Icons.send,
+                    color: msgCtrl.text.trim().isEmpty
+                        ? Colors.grey
+                        : Colors.teal,
+                  ),
+                  onPressed: msgCtrl.text.trim().isEmpty
+                      ? null
+                      : sendMessage,
                 )
               ],
             ),
