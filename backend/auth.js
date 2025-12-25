@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
+import { db } from "./db.js";
 
-export function auth(req, res, next) {
+export async function auth(req, res, next) {
   const header = req.headers.authorization;
 
   // 🔐 Header absent ou mal formé
@@ -18,8 +19,20 @@ export function auth(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔥 TRÈS IMPORTANT
+    // 🔥 ID utilisateur
     req.userId = decoded.id;
+
+    // 🔥 RÉCUPÉRATION DU RÔLE
+    const [rows] = await db.execute(
+      "SELECT role FROM users WHERE id=?",
+      [req.userId]
+    );
+
+    if (!rows.length) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    req.userRole = rows[0].role; // user | moderator | admin
 
     next();
   } catch (err) {

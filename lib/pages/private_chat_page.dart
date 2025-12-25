@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../utils/message_filter.dart';
 
 class PrivateChatPage extends StatefulWidget {
   final int currentId;
@@ -67,6 +68,16 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     final text = msgCtrl.text.trim();
     if (text.isEmpty) return;
 
+    if (MessageFilter.containsForbidden(text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⛔ Message interdit"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final chatRef =
     FirebaseFirestore.instance.collection("private_chats").doc(chatId);
 
@@ -115,13 +126,11 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   // ================= PROFILE IMAGE =================
   ImageProvider getProfileImage() {
     if (widget.otherProfile == null ||
-        widget.otherProfile!.isEmpty ||
         !widget.otherProfile!.startsWith("http")) {
       return const AssetImage("assets/default.jpg");
     }
     return NetworkImage(widget.otherProfile!);
   }
-
 
   // ================= MESSAGE BUBBLE =================
   Widget messageBubble(Map<String, dynamic> m) {
@@ -179,7 +188,9 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                 if (isMe) ...[
                   const SizedBox(width: 6),
                   Icon(
-                    seen ? Icons.check_circle : Icons.check_circle_outline,
+                    seen
+                        ? Icons.check_circle
+                        : Icons.check_circle_outline,
                     size: 14,
                     color: Colors.white70,
                   ),
@@ -195,8 +206,6 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final chatRef =
     FirebaseFirestore.instance.collection("private_chats").doc(chatId);
 
@@ -206,7 +215,6 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 1,
         title: Row(
           children: [
             CircleAvatar(backgroundImage: getProfileImage()),
@@ -217,60 +225,25 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
       ),
       body: Column(
         children: [
-          // ================= TYPING INDICATOR =================
-          StreamBuilder<DocumentSnapshot>(
-            stream: chatRef.snapshots(),
-            builder: (context, snap) {
-              if (!snap.hasData || !snap.data!.exists) {
-                return const SizedBox(height: 0);
-              }
-
-              final data = snap.data!.data() as Map<String, dynamic>;
-              final bool otherTyping =
-                  data["typing_${widget.otherId}"] == true;
-
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: otherTyping
-                    ? Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    "${widget.otherName} est en train d’écrire...",
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: isDark
-                          ? Colors.white70
-                          : Colors.grey.shade700,
-                    ),
-                  ),
-                )
-                    : const SizedBox(height: 0),
-              );
-            },
-          ),
-
-          // ================= MESSAGES =================
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: messagesRef.snapshots(),
               builder: (context, snap) {
                 if (!snap.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
 
                 final docs = snap.data!.docs;
-
-                // 🔥 AUTO SCROLL ON NEW MESSAGE
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  scrollToBottom();
-                });
+                scrollToBottom();
 
                 return ListView.builder(
                   controller: scrollCtrl,
                   reverse: true,
                   itemCount: docs.length,
                   itemBuilder: (_, i) {
-                    final m = docs[i].data() as Map<String, dynamic>;
+                    final m =
+                    docs[i].data() as Map<String, dynamic>;
                     return messageBubble(m);
                   },
                 );
@@ -278,36 +251,28 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
             ),
           ),
 
-          // ================= INPUT =================
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade900
+                : Colors.grey.shade200,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: msgCtrl,
                     onChanged: (txt) => setTyping(txt.isNotEmpty),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: "Votre message...",
-                      filled: true,
-                      fillColor:
-                      isDark ? Colors.grey.shade800 : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
+                      border: InputBorder.none,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: sendMessage,
-                  ),
-                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.teal),
+                  onPressed: sendMessage,
+                )
               ],
             ),
           ),

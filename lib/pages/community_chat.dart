@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/message_filter.dart';
 
 class CommunityChatPage extends StatefulWidget {
   final int userId;
@@ -19,14 +20,26 @@ class CommunityChatPage extends StatefulWidget {
 
 class _CommunityChatPageState extends State<CommunityChatPage> {
   final TextEditingController msgCtrl = TextEditingController();
-  final ScrollController _scrollCtrl = ScrollController();
+  final ScrollController scrollCtrl = ScrollController();
 
   // ================= SEND MESSAGE =================
   void sendMessage() {
-    if (msgCtrl.text.trim().isEmpty) return;
+    final text = msgCtrl.text.trim();
+    if (text.isEmpty) return;
+
+    // 🔒 Filtre insultes / -18
+    if (MessageFilter.containsForbidden(text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⛔ Message interdit dans la communauté"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     FirebaseFirestore.instance.collection("community_messages").add({
-      "message": msgCtrl.text.trim(),
+      "message": text,
       "sender_id": widget.userId,
       "username": widget.username,
       "profile": widget.profile,
@@ -39,13 +52,15 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
   // ================= SCROLL =================
   void scrollToBottom() {
-    if (!_scrollCtrl.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scrollCtrl.hasClients) return;
 
-    _scrollCtrl.animateTo(
-      _scrollCtrl.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+      scrollCtrl.animateTo(
+        scrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   // ================= PROFILE IMAGE =================
@@ -56,11 +71,10 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
     return NetworkImage(url);
   }
 
-
   @override
   void dispose() {
     msgCtrl.dispose();
-    _scrollCtrl.dispose();
+    scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -92,13 +106,11 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
                 final docs = snapshot.data!.docs;
 
-                // 🔥 AUTO SCROLL AFTER FRAME
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  scrollToBottom();
-                });
+                // 🔥 Auto-scroll
+                scrollToBottom();
 
                 return ListView.builder(
-                  controller: _scrollCtrl,
+                  controller: scrollCtrl,
                   padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
@@ -129,8 +141,9 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                         subtitle: Text(
                           message,
                           style: TextStyle(
-                            color:
-                            isDark ? Colors.grey[300] : Colors.black87,
+                            color: isDark
+                                ? Colors.grey[300]
+                                : Colors.black87,
                           ),
                         ),
                       ),
@@ -143,7 +156,8 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
 
           // ================= INPUT BAR =================
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color:
               isDark ? Colors.grey.shade900 : Colors.grey.shade200,
@@ -159,8 +173,9 @@ class _CommunityChatPageState extends State<CommunityChatPage> {
                     decoration: InputDecoration(
                       hintText: "Écrire un message...",
                       hintStyle: TextStyle(
-                        color:
-                        isDark ? Colors.grey[400] : Colors.grey[600],
+                        color: isDark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
                       ),
                       filled: true,
                       fillColor: inputBg,

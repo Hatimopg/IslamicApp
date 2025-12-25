@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import multer from "multer";
 import admin from "firebase-admin";
 import svgCaptcha from "svg-captcha";
+import { containsForbiddenWords } from "./utils/messageFilter.js";
 
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -241,6 +242,147 @@ app.get("/profile", auth, async (req, res) => {
     return res.status(404).json({ error: "User not found" });
 
   res.json(rows[0]);
+});
+
+/* ============================================================
+   filtre des bad words
+=============================================================== */
+
+app.post("/chat/send", auth, async (req, res) => {
+  try {
+    const { message, chatType, chatId, toUserId } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message vide" });
+    }
+
+    // 🚫 FILTRE LANGAGE
+    if (containsForbiddenWords(message)) {
+      return res.status(403).json({
+        error: "Message refusé : langage interdit",
+      });
+    }
+
+    // 🔥 PRIVATE CHAT
+    if (chatType === "private") {
+      await firestore
+        .collection("private_chats")
+        .doc(chatId)
+        .collection("messages")
+        .add({
+          from: req.userId,
+          to: toUserId,
+          text: message,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          seen: false,
+        });
+    }
+
+    // 🔥 COMMUNITY CHAT
+    if (chatType === "community") {
+      await firestore.collection("community_messages").add({
+        message,
+        sender_id: req.userId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+/* ============================================================
+   admin
+=============================================================== */
+
+app.post("/chat/send", auth, async (req, res) => {
+  try {
+    const { message, chatType, chatId, toUserId } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message vide" });
+    }
+
+    // 🚫 Filtre langage
+    if (containsForbiddenWords(message)) {
+      return res.status(403).json({
+        error: "Message refusé : langage interdit",
+      });
+    }
+
+    // 🔇 Vérif mute
+    const userDoc = await firestore
+      .collection("users")
+      .doc(req.userId.toString())
+      .get();
+
+    if (userDoc.data()?.mutedUntil > Date.now()) {
+      return res.status(403).json({
+        error: "Vous êtes temporairement mute",
+      });
+    }
+
+    // 🔥 COMMUNITY
+    if (chatType === "community") {
+      await firestore.collection("community_messages").add({
+        message,
+        sender_id: req.userId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 🔥 PRIVATE
+    if (chatType === "private") {
+      await firestore
+        .collection("private_chats")
+        .doc(chatId)
+        .collection("messages")
+        .add({
+          from: req.userId,
+          to: toUserId,
+          text: message,
+          seen: false,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+app.delete("/moderation/message/:collection/:id", auth, async (req, res) => {
+  if (req.userRole !== "moderator" && req.userRole !== "admin") {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+
+  await firestore
+    .collection(req.params.collection)
+    .doc(req.params.id)
+    .delete();
+
+  res.json({ success: true });
+});
+
+
+
+app.post("/moderation/mute/:userId", auth, async (req, res) => {
+  if (req.userRole !== "moderator" && req.userRole !== "admin") {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+
+  await firestore.collection("users").doc(req.params.userId).update({
+    mutedUntil: Date.now() + 24 * 60 * 60 * 1000, // 24h
+  });
+
+  res.json({ success: true });
 });
 
 /* ============================================================
