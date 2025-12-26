@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // ✅ kIsWeb
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -13,21 +14,27 @@ class IslamicQuizPage extends StatefulWidget {
 
 class _IslamicQuizPageState extends State<IslamicQuizPage>
     with SingleTickerProviderStateMixin {
-  final Random _random = Random();
 
-  // ================= AUDIO (API MAISON) =================
+  // ================= AUDIO =================
   final AudioPlayer sfxPlayer = AudioPlayer();
   bool isMuted = false;
 
   Future<void> playSfx(String file) async {
-    if (isMuted) return;
+    if (isMuted || kIsWeb) return;
+
     await sfxPlayer.stop();
-    await sfxPlayer.play(AssetSource("sounds/$file"));
+    await sfxPlayer.setReleaseMode(ReleaseMode.stop);
+    await sfxPlayer.setVolume(1.0); // 🔥 IMPORTANT ANDROID
+
+    await sfxPlayer.play(
+      AssetSource("sounds/$file"),
+      volume: 1.0,
+    );
   }
 
   Future<void> loadMute() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => isMuted = prefs.getBool("quiz_muted") ?? false);
+    isMuted = prefs.getBool("quiz_muted") ?? false;
   }
 
   Future<void> toggleMute() async {
@@ -36,7 +43,8 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     await prefs.setBool("quiz_muted", isMuted);
   }
 
-  // ================= GAME STATE =================
+  // ================= GAME =================
+  final Random _random = Random();
   int questionIndex = 0;
   int score = 0;
   int record = 0;
@@ -92,8 +100,8 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     super.initState();
     timerController =
         AnimationController(vsync: this, duration: const Duration(seconds: maxTime));
-    loadRecord();
     loadMute();
+    loadRecord();
     startGame();
   }
 
@@ -120,7 +128,6 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() => timeLeft--);
 
-      // ⏱ pression dernière secondes
       if (timeLeft <= 3 && timeLeft > 0) {
         playSfx("tick.mp3");
       }
@@ -147,7 +154,6 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     });
 
     playSfx(isCorrect ? "correct.mp3" : "wrong.mp3");
-
     Future.delayed(const Duration(seconds: 1), nextQuestion);
   }
 
@@ -182,30 +188,12 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
   }
 
   void showEnd() {
-    final bool newRecord = score >= record;
-
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text("🏆 Classement"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("🎯 Score : $score / 30",
-                style: const TextStyle(fontSize: 22)),
-            const SizedBox(height: 10),
-            Text("🥇 Record : $record / 30"),
-            const SizedBox(height: 10),
-            Text(
-              newRecord ? "🔥 Nouveau record !" : "💪 Bien joué",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: newRecord ? Colors.green : Colors.orange,
-              ),
-            ),
-          ],
-        ),
+        title: const Text("🏆 Résultat"),
+        content: Text("Score : $score / 30\nRecord : $record / 30"),
         actions: [
           ElevatedButton(
             onPressed: () {
@@ -213,7 +201,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
               setState(startGame);
             },
             child: const Text("Rejouer"),
-          ),
+          )
         ],
       ),
     );
@@ -227,7 +215,6 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     super.dispose();
   }
 
-  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,9 +235,11 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
             const SizedBox(height: 10),
             LinearProgressIndicator(value: timerController.value),
             const SizedBox(height: 30),
-            Text(currentQuestion["q"],
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              currentQuestion["q"],
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 30),
             ...List.generate(
               4,
@@ -268,13 +257,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
                       ),
                     ),
                     onPressed: () => answer(i),
-                    child: Text(
-                      currentQuestion["a"][i],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(currentQuestion["a"][i]),
                   ),
                 ),
               ),
