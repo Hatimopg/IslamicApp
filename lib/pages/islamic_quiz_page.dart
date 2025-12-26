@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class IslamicQuizPage extends StatefulWidget {
   const IslamicQuizPage({super.key});
@@ -14,7 +15,28 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     with SingleTickerProviderStateMixin {
   final Random _random = Random();
 
-  // GAME STATE
+  // ================= AUDIO (API MAISON) =================
+  final AudioPlayer sfxPlayer = AudioPlayer();
+  bool isMuted = false;
+
+  Future<void> playSfx(String file) async {
+    if (isMuted) return;
+    await sfxPlayer.stop();
+    await sfxPlayer.play(AssetSource("sounds/$file"));
+  }
+
+  Future<void> loadMute() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => isMuted = prefs.getBool("quiz_muted") ?? false);
+  }
+
+  Future<void> toggleMute() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => isMuted = !isMuted);
+    await prefs.setBool("quiz_muted", isMuted);
+  }
+
+  // ================= GAME STATE =================
   int questionIndex = 0;
   int score = 0;
   int record = 0;
@@ -22,7 +44,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
   bool answered = false;
   int? selectedIndex;
 
-  // TIMER
+  // ================= TIMER =================
   static const int maxTime = 10;
   int timeLeft = maxTime;
   Timer? timer;
@@ -71,6 +93,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     timerController =
         AnimationController(vsync: this, duration: const Duration(seconds: maxTime));
     loadRecord();
+    loadMute();
     startGame();
   }
 
@@ -96,9 +119,16 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
 
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() => timeLeft--);
+
+      // ⏱ pression dernière secondes
+      if (timeLeft <= 3 && timeLeft > 0) {
+        playSfx("tick.mp3");
+      }
+
       if (timeLeft == 0) {
         t.cancel();
         answered = true;
+        playSfx("wrong.mp3");
         Future.delayed(const Duration(seconds: 1), nextQuestion);
       }
     });
@@ -108,18 +138,23 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     if (answered) return;
     timer?.cancel();
 
+    final bool isCorrect = i == currentQuestion["c"];
+
     setState(() {
       answered = true;
       selectedIndex = i;
-      if (i == currentQuestion["c"]) score++;
+      if (isCorrect) score++;
     });
+
+    playSfx(isCorrect ? "correct.mp3" : "wrong.mp3");
+
     Future.delayed(const Duration(seconds: 1), nextQuestion);
   }
 
-
   void nextQuestion() async {
-    if (questionIndex == 29) {
+    if (questionIndex == quiz.length - 1) {
       await saveRecord();
+      playSfx("finish.mp3");
       showEnd();
       return;
     }
@@ -157,38 +192,13 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 🎯 Score partie
+            Text("🎯 Score : $score / 30",
+                style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 10),
+            Text("🥇 Record : $record / 30"),
+            const SizedBox(height: 10),
             Text(
-              "🎯 Score de la partie",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "$score / 30",
-              style: const TextStyle(fontSize: 22),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 🥇 Record
-            Text(
-              "🥇 Meilleur score",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "${record} / 30",
-              style: const TextStyle(fontSize: 18),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 🔥 Message dynamique
-            Text(
-              newRecord
-                  ? "🔥 Nouveau record !"
-                  : "💪 Bien joué, continue !",
-              textAlign: TextAlign.center,
+              newRecord ? "🔥 Nouveau record !" : "💪 Bien joué",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: newRecord ? Colors.green : Colors.orange,
@@ -197,33 +207,39 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
           ],
         ),
         actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(startGame);
-              },
-              child: const Text("Rejouer"),
-            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(startGame);
+            },
+            child: const Text("Rejouer"),
           ),
         ],
       ),
     );
   }
 
-
   @override
   void dispose() {
     timer?.cancel();
     timerController.dispose();
+    sfxPlayer.dispose();
     super.dispose();
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("🕋 Quiz Islamique")),
+      appBar: AppBar(
+        title: const Text("🕋 Quiz Islamique"),
+        actions: [
+          IconButton(
+            icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up),
+            onPressed: toggleMute,
+          )
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -245,7 +261,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: btnColor(i),
-                      foregroundColor: Colors.white, // ✅ TEXTE BLANC
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
@@ -259,7 +275,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
+                  ),
                 ),
               ),
             ),
