@@ -13,6 +13,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+
+        // 🔥 OBLIGATOIRE pour flutter_local_notifications
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -27,7 +30,7 @@ android {
         versionName = flutter.versionName
     }
 
-    // ✅ FIX OFFICIEL STRIP DEBUG SYMBOLS (KTS)
+    // ✅ FIX OFFICIEL (JNI / symbols)
     packaging {
         jniLibs {
             useLegacyPackaging = true
@@ -36,9 +39,19 @@ android {
 
     buildTypes {
         release {
+            // ⚠️ debug uniquement pour tests
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+/**
+ * 🔥 DÉPENDANCES ANDROID
+ * (NE PAS SUPPRIMER, NE PAS METTRE DANS android {})
+ */
+dependencies {
+    // 🔑 requis par coreLibraryDesugaring
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
 flutter {
