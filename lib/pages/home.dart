@@ -107,7 +107,7 @@ class _HomePageState extends State<HomePage> {
         await CityStorage.save(city);
       }
     } catch (_) {
-      setState(() => selectedCity = "Brussels");
+      setState(() => selectedCity = "Ronse");
     }
 
     fetchPrayerTimes();
