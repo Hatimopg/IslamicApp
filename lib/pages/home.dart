@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../utils/location_mapper.dart';
 import '../utils/city_storage.dart';
 import '../utils/token_storage.dart';
+import '../utils/notification_service.dart';
 
 import 'community_chat.dart';
 import 'private_users.dart';
@@ -116,19 +117,16 @@ class _HomePageState extends State<HomePage> {
   // ================= CITY PICKER =================
   void showCityPicker() {
     const belgianCities = [
+      "Ronse",
       "Brussels",
       "Antwerp",
       "Ghent",
       "Charleroi",
       "Liège",
-      "Namur",
       "Mons",
-      "Bruges",
-      "Leuven",
-      "Mechelen",
-      "Hasselt",
       "Tournai",
       "Arlon",
+      "Bruges",
     ];
 
     showModalBottomSheet(
@@ -209,7 +207,10 @@ class _HomePageState extends State<HomePage> {
           prayerTimes = jsonDecode(res.body)["data"]["timings"];
         });
         computeNextPrayer();
-      } else {
+
+        scheduleAdhanNotifications();
+      }
+      else {
         setState(() => prayerTimes = {});
       }
     } catch (_) {
@@ -239,6 +240,38 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() => nextPrayer = "Fajr (demain)");
+  }
+
+
+  void scheduleAdhanNotifications() {
+    if (prayerTimes == null || prayerTimes!.isEmpty) return;
+
+    final now = DateTime.now();
+    int id = 0;
+
+    for (final p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
+      final t = prayerTimes![p].split(":");
+
+      DateTime time = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        int.parse(t[0]),
+        int.parse(t[1]),
+      );
+
+      // Si l'heure est déjà passée → demain
+      if (time.isBefore(now)) {
+        time = time.add(const Duration(days: 1));
+      }
+
+      NotificationService.schedule(
+        id: id++,
+        title: "🕌 Appel à la prière",
+        body: "C'est l'heure de $p",
+        time: time,
+      );
+    }
   }
 
   // ================= MÉTÉO =================

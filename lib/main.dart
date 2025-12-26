@@ -4,14 +4,21 @@ import 'package:islamicapp/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/login.dart';
 import 'pages/home.dart';
+import 'utils/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // 🔔 ICI EXACTEMENT
+  await NotificationService.init();
+
   runApp(IslamicApp());
 }
+
 
 class IslamicApp extends StatefulWidget {
   @override
