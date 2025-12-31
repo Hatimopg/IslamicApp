@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'pages/login.dart';
 import 'utils/notification_service.dart';
+import 'theme/lci_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,7 +116,7 @@ class _IslamicAppState extends State<IslamicApp>
 
       // 🌗 THEMES
       themeMode: themeMode,
-      theme: ThemeData.light(),
+      theme: lciLightTheme,
       darkTheme: ThemeData.dark(),
 
       home: LoginPage(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../theme/lci_theme.dart';
 import 'register.dart';
 import 'home.dart';
 import '../utils/token_storage.dart';
@@ -155,7 +155,7 @@ class _LoginPageState extends State<LoginPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.grey.shade100,
+      backgroundColor: isDark ? Colors.black : lciBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -178,11 +178,11 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "IslamicApp",
+                "LCI Ronse",
                 style: TextStyle(
                   fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.purpleAccent : Colors.purple,
+                  color: lciGreen,
                 ),
               ),
 

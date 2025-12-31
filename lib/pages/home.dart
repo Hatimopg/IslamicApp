@@ -8,6 +8,7 @@ import '../utils/location_mapper.dart';
 import '../utils/city_storage.dart';
 import '../utils/token_storage.dart';
 import '../utils/notification_service.dart';
+import '../theme/lci_theme.dart';
 
 import 'community_chat.dart';
 import 'private_users.dart';
@@ -316,7 +317,8 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("IslamicApp"),
+        title: const Text("LCI Ronse"),
+        backgroundColor: lciGreen,
         actions: [
           IconButton(
             icon: const Icon(Icons.location_city),
@@ -331,6 +333,7 @@ class _HomePageState extends State<HomePage> {
       body: pages[index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
+        indicatorColor: lciGreenLight,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: "Accueil"),
