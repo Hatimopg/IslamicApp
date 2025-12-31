@@ -17,12 +17,16 @@ import { logError } from "./logger.js";
 
 dotenv.config();
 
+
 /* ============================================================
    EXPRESS INIT
 =============================================================== */
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// 🔓 FICHIERS STATIQUES (privacy policy)
+app.use(express.static("public"));
 
 /* ============================================================
    CLOUDINARY CONFIG
