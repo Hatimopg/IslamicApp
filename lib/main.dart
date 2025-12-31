@@ -1,34 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:islamicapp/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'firebase_options.dart';
 import 'pages/login.dart';
-import 'pages/home.dart';
 import 'utils/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 🔥 INIT FIREBASE (OBLIGATOIRE AVANT TOUT)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🔔 ICI EXACTEMENT
-  await NotificationService.init();
+  // 🔔 INIT NOTIFICATIONS (SAFE – ANTI CRASH RELEASE)
+  try {
+    await NotificationService.init();
+  } catch (e) {
+    debugPrint("⚠️ Notification init failed: $e");
+  }
 
-  runApp(IslamicApp());
+  runApp(const IslamicApp());
 }
 
+/* ============================================================
+   APP ROOT
+=============================================================== */
 
 class IslamicApp extends StatefulWidget {
+  const IslamicApp({super.key});
+
   @override
   State<IslamicApp> createState() => _IslamicAppState();
 }
 
-class _IslamicAppState extends State<IslamicApp> with WidgetsBindingObserver {
+class _IslamicAppState extends State<IslamicApp>
+    with WidgetsBindingObserver {
   int? userId;
 
-  // ⭐ THEME MODE GLOBAL (light/dark)
+  // 🌗 THEME GLOBAL
   ThemeMode themeMode = ThemeMode.light;
 
   void toggleTheme() {
@@ -37,6 +48,10 @@ class _IslamicAppState extends State<IslamicApp> with WidgetsBindingObserver {
       themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     });
   }
+
+  /* ============================================================
+     LIFECYCLE
+  =============================================================== */
 
   @override
   void initState() {
@@ -58,37 +73,54 @@ class _IslamicAppState extends State<IslamicApp> with WidgetsBindingObserver {
         .collection("users")
         .doc(userId.toString());
 
-    if (state == AppLifecycleState.resumed) {
-      ref.update({"isOnline": true, "lastSeen": DateTime.now()});
-    } else {
-      ref.update({"isOnline": false, "lastSeen": DateTime.now()});
+    // 🔥 SAFE UPDATE (ANTI CRASH RELEASE)
+    try {
+      ref.update({
+        "isOnline": state == AppLifecycleState.resumed,
+        "lastSeen": DateTime.now(),
+      });
+    } catch (e) {
+      debugPrint("⚠️ Firestore lifecycle update failed: $e");
     }
   }
 
+  /* ============================================================
+     LOGIN CALLBACK
+  =============================================================== */
+
   void setLoggedUser(int id) {
     userId = id;
-    FirebaseFirestore.instance
-        .collection("users")
-        .doc(userId.toString())
-        .update({
-      "isOnline": true,
-      "lastSeen": DateTime.now(),
-    });
+
+    try {
+      FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId.toString())
+          .update({
+        "isOnline": true,
+        "lastSeen": DateTime.now(),
+      });
+    } catch (e) {
+      debugPrint("⚠️ Firestore login update failed: $e");
+    }
   }
+
+  /* ============================================================
+     UI
+  =============================================================== */
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      // ⭐ APPLIQUE LE THEME GLOBAL
+      // 🌗 THEMES
       themeMode: themeMode,
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
 
       home: LoginPage(
         onLogin: setLoggedUser,
-        onToggleTheme: toggleTheme, // ⭐ IMPORTANT
+        onToggleTheme: toggleTheme,
       ),
     );
   }
