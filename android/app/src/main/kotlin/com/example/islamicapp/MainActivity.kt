@@ -1,4 +1,4 @@
-package com.example.islamicapp
+package com.mosquee.islamicapp
 
 import io.flutter.embedding.android.FlutterActivity
 
