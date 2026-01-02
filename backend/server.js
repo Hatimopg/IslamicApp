@@ -248,6 +248,23 @@ app.get("/profile", auth, async (req, res) => {
   res.json(rows[0]);
 });
 
+app.post("/delete-account", auth, async (req, res) => {
+  const { password } = req.body;
+
+  const [rows] = await db.execute(
+    "SELECT password_hash FROM users WHERE id=?",
+    [req.userId]
+  );
+
+  const ok = await bcrypt.compare(password, rows[0].password_hash);
+  if (!ok) return res.status(401).json({ error: "Mot de passe incorrect" });
+
+  await db.execute("DELETE FROM users WHERE id=?", [req.userId]);
+  await firestore.collection("users").doc(req.userId.toString()).delete();
+
+  res.json({ success: true });
+});
+
 /* ============================================================
    filtre des bad words
 =============================================================== */

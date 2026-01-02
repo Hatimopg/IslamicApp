@@ -7,15 +7,14 @@ import '../utils/token_storage.dart';
 class DeleteAccountPage extends StatefulWidget {
   final int userId;
 
-  DeleteAccountPage({required this.userId});
+  const DeleteAccountPage({super.key, required this.userId});
 
   @override
-  _DeleteAccountPageState createState() => _DeleteAccountPageState();
+  State<DeleteAccountPage> createState() => _DeleteAccountPageState();
 }
 
 class _DeleteAccountPageState extends State<DeleteAccountPage> {
-  TextEditingController passCtrl = TextEditingController();
-  TextEditingController birthCtrl = TextEditingController();
+  final TextEditingController passCtrl = TextEditingController();
 
   bool loading = false;
   bool passwordVisible = false;
@@ -24,49 +23,50 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     setState(() => loading = true);
 
     final token = await TokenStorage.getToken();
-
     if (token == null) {
       setState(() => loading = false);
       return;
     }
 
     final url = Uri.parse(
-        "https://exciting-learning-production-d784.up.railway.app/delete-account");
+      "https://exciting-learning-production-d784.up.railway.app/delete-account",
+    );
 
     final res = await http.post(
       url,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer $token", // 🔐 AJOUT IMPORTANT
+        "Authorization": "Bearer $token",
       },
       body: jsonEncode({
-        "password": passCtrl.text.trim(),
-        "birthdate": birthCtrl.text.trim(),
+        "password": passCtrl.text.trim(), // ✅ MDP UNIQUEMENT
       }),
     );
 
     setState(() => loading = false);
 
     if (res.statusCode == 200) {
-      bool finalConfirm = await _doubleConfirm();
+      final confirmed = await _doubleConfirm();
+      if (!confirmed) return;
 
-      if (finalConfirm == true) {
-        await TokenStorage.clear();
+      await TokenStorage.clear();
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => LoginPage(
-              onLogin: (_) {},
-              onToggleTheme: () {},
-            ),
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(
+            onLogin: (_) {},
+            onToggleTheme: () {},
           ),
-              (route) => false,
-        );
-      }
+        ),
+            (route) => false,
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Informations incorrectes")),
+        const SnackBar(
+          content: Text("Mot de passe incorrect"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -75,19 +75,23 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   // DOUBLE CONFIRMATION
   // ----------------------------------------------------------
   Future<bool> _doubleConfirm() async {
-    TextEditingController confirmCtrl = TextEditingController();
+    final TextEditingController confirmCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return await showDialog(
+    return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
         title: const Text(
           "Dernière confirmation",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -95,38 +99,42 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             Text(
               "⚠️ Action irréversible !\n\nTape EXACTEMENT :",
               style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black),
+                color: isDark ? Colors.white : Colors.black,
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
               "SUPPRIMER",
               style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: confirmCtrl,
-              decoration:
-              const InputDecoration(labelText: "Tape SUPPRIMER"),
-            )
+              decoration: const InputDecoration(
+                labelText: "Tape SUPPRIMER",
+              ),
+            ),
           ],
         ),
         actions: [
           TextButton(
-            child: const Text("Annuler"),
             onPressed: () => Navigator.pop(context, false),
+            child: const Text("Annuler"),
           ),
           ElevatedButton(
-            style:
-            ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Confirmer"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
             onPressed: () {
               if (confirmCtrl.text.trim().toUpperCase() == "SUPPRIMER") {
                 Navigator.pop(context, true);
               }
             },
+            child: const Text("Confirmer"),
           ),
         ],
       ),
@@ -136,8 +144,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Supprimer mon compte"),
@@ -147,8 +153,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Text("Confirme ton mot de passe et ta date de naissance"),
-            const SizedBox(height: 20),
+            const Text(
+              "Confirme ton mot de passe pour supprimer définitivement ton compte",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 25),
 
             TextField(
               controller: passCtrl,
@@ -156,21 +165,15 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               decoration: InputDecoration(
                 labelText: "Mot de passe",
                 suffixIcon: IconButton(
-                  icon: Icon(passwordVisible
-                      ? Icons.visibility
-                      : Icons.visibility_off),
+                  icon: Icon(
+                    passwordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
                   onPressed: () =>
                       setState(() => passwordVisible = !passwordVisible),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: birthCtrl,
-              decoration:
-              const InputDecoration(labelText: "Date de naissance"),
             ),
 
             const SizedBox(height: 30),
@@ -180,9 +183,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 : ElevatedButton(
               onPressed: deleteAccount,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: const Size(double.infinity, 50)),
-              child: const Text("Valider"),
+                backgroundColor: Colors.red,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text("Supprimer définitivement"),
             ),
           ],
         ),

@@ -14,17 +14,27 @@ class QiblaCompassPage extends StatefulWidget {
 
 class _QiblaCompassPageState extends State<QiblaCompassPage>
     with SingleTickerProviderStateMixin {
-  double? direction;
-  double? qiblaDirection;
-  String status = "Initialisation…";
-
-  StreamSubscription<CompassEvent>? compassSub;
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  double _currentAngle = 0;
-
+  // 📍 Kaaba
   static const double kaabaLat = 21.4225;
   static const double kaabaLon = 39.8262;
+
+  // 🎯 précision (± degrés)
+  static const double alignThreshold = 1.5;
+
+  double? qiblaDirection;
+  double _smoothedAngle = 0;
+  bool _aligned = false;
+  bool _hasCompass = true;
+  String _status = "Initialisation…";
+
+  // 🎛️ animation
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  StreamSubscription<CompassEvent>? _compassSub;
+
+  // 🧠 filtre anti-tremblement (EMA)
+  static const double smoothingFactor = 0.15;
 
   @override
   void initState() {
@@ -32,60 +42,79 @@ class _QiblaCompassPageState extends State<QiblaCompassPage>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
     );
 
-    initAll();
+    _animation = Tween<double>(begin: 0, end: 0).animate(_controller);
+
+    _initQibla();
   }
 
-  Future<void> initAll() async {
+  Future<void> _initQibla() async {
     if (kIsWeb) {
-      setState(() => status = "Boussole non supportée sur le web");
+      setState(() => _status = "Boussole non supportée sur le web");
       return;
     }
 
     final permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      setState(() => status = "Permission localisation refusée");
+      setState(() => _status = "Permission localisation refusée");
       return;
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+    final pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
     );
 
-    qiblaDirection =
-        calculateQibla(position.latitude, position.longitude);
+    qiblaDirection = _calculateQibla(pos.latitude, pos.longitude);
 
-    compassSub = FlutterCompass.events?.listen((event) {
+    _compassSub = FlutterCompass.events?.listen((event) {
       if (event.heading == null) {
-        setState(() => status = "Calibrage… bouge le téléphone en ∞");
+        _hasCompass = false;
+        setState(() => _status = "Calibration requise (mouvement ∞)");
         return;
       }
 
-      final newAngle =
+      _hasCompass = true;
+
+      final rawAngle =
           ((qiblaDirection! - event.heading!) + 360) % 360;
 
+      // 🧠 lissage EMA
+      _smoothedAngle = _smoothedAngle == 0
+          ? rawAngle
+          : _smoothedAngle +
+          smoothingFactor * (rawAngle - _smoothedAngle);
+
       _animation = Tween<double>(
-        begin: _currentAngle,
-        end: newAngle,
-      ).animate(CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ));
+        begin: _animation.value,
+        end: _smoothedAngle,
+      ).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: Curves.easeOut,
+        ),
+      );
 
       _controller.forward(from: 0);
-      _currentAngle = newAngle;
 
-      setState(() {
-        direction = event.heading;
-        status = "OK";
-      });
+      _checkAlignment(_smoothedAngle);
+
+      setState(() => _status = "OK");
     });
   }
 
-  double calculateQibla(double lat, double lon) {
+  void _checkAlignment(double angle) {
+    final isAligned =
+        angle <= alignThreshold || angle >= 360 - alignThreshold;
+
+    if (_aligned != isAligned) {
+      setState(() => _aligned = isAligned);
+    }
+  }
+
+  double _calculateQibla(double lat, double lon) {
     final latRad = lat * pi / 180;
     final lonRad = lon * pi / 180;
     final kaabaLatRad = kaabaLat * pi / 180;
@@ -100,26 +129,24 @@ class _QiblaCompassPageState extends State<QiblaCompassPage>
 
   @override
   void dispose() {
-    compassSub?.cancel();
+    _compassSub?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0B1020),
       appBar: AppBar(
         title: const Text("Qibla"),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: Center(
-        child: qiblaDirection == null || direction == null
+        child: qiblaDirection == null
             ? Text(
-          status,
+          _status,
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 18,
@@ -129,72 +156,87 @@ class _QiblaCompassPageState extends State<QiblaCompassPage>
             : Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "Direction de la Qibla",
+            Text(
+              _aligned
+                  ? "Aligné avec la Qibla"
+                  : "Tourne doucement le téléphone",
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
+                color: _aligned ? Colors.green : Colors.white70,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 30),
 
-            /// 🧭 Boussole
+            /// 🧭 Boussole premium
             AnimatedBuilder(
-              animation: _animation,
-              builder: (context, child) {
+              animation: _controller,
+              builder: (_, child) {
                 return Transform.rotate(
                   angle: -_animation.value * pi / 180,
                   child: child,
                 );
               },
               child: Container(
-                width: 260,
-                height: 260,
+                width: 280,
+                height: 280,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [
+                  gradient: RadialGradient(
+                    colors: _aligned
+                        ? [
+                      Colors.green.withOpacity(0.35),
+                      const Color(0xFF022C22),
+                    ]
+                        : const [
                       Color(0xFF1E293B),
                       Color(0xFF020617),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.6),
-                      blurRadius: 20,
+                      color: _aligned
+                          ? Colors.green.withOpacity(0.6)
+                          : Colors.black.withOpacity(0.6),
+                      blurRadius: 25,
                     )
                   ],
+                  border: Border.all(
+                    color: _aligned
+                        ? Colors.green
+                        : Colors.deepPurpleAccent,
+                    width: 3,
+                  ),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    /// Aiguille
                     Positioned(
-                      top: 20,
+                      top: 18,
                       child: Icon(
                         Icons.navigation,
-                        size: 80,
-                        color: Colors.deepPurpleAccent,
+                        size: 90,
+                        color: _aligned
+                            ? Colors.green
+                            : Colors.deepPurpleAccent,
                       ),
                     ),
-
-                    /// Kaaba centre
                     Container(
-                      width: 70,
-                      height: 70,
+                      width: 78,
+                      height: 78,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.black,
                         border: Border.all(
-                          color: Colors.amber,
+                          color:
+                          _aligned ? Colors.green : Colors.amber,
                           width: 2,
                         ),
                       ),
                       child: const Center(
                         child: Text(
                           "🕋",
-                          style: TextStyle(fontSize: 30),
+                          style: TextStyle(fontSize: 34),
                         ),
                       ),
                     ),
@@ -203,14 +245,24 @@ class _QiblaCompassPageState extends State<QiblaCompassPage>
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 22),
+
             Text(
-              "${qiblaDirection!.toStringAsFixed(1)}°",
+              "${_smoothedAngle.toStringAsFixed(1)}°",
               style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 18,
+                color: Colors.white54,
+                fontSize: 16,
               ),
             ),
+
+            if (!_hasCompass)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  "Capteur indisponible – orientation GPS",
+                  style: TextStyle(color: Colors.orange),
+                ),
+              ),
           ],
         ),
       ),
