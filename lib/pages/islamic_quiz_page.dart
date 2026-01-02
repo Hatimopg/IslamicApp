@@ -188,7 +188,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
         t.cancel();
         answered = true;
         playSfx("wrong.mp3");
-        Future.delayed(const Duration(seconds: 1), nextQuestion);
+        Future.delayed(const Duration(seconds: 2), nextQuestion);
       }
     });
   }
@@ -206,7 +206,7 @@ class _IslamicQuizPageState extends State<IslamicQuizPage>
     });
 
     playSfx(isCorrect ? "correct.mp3" : "wrong.mp3");
-    Future.delayed(const Duration(seconds: 1), nextQuestion);
+    Future.delayed(const Duration(seconds: 2), nextQuestion);
   }
 
   void nextQuestion() async {
