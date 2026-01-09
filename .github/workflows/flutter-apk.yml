@@ -37,7 +37,7 @@ jobs:
           mv build/app/outputs/apk/release/app-release.apk \
              build/app/outputs/apk/release/LCI-Ronse-beta.apk
 
-      # 🚀 Upload FTP (BON DOSSIER)
+      # 🚀 Upload FTP (FORCE ÉCRASEMENT)
       - name: Upload APK to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -46,3 +46,4 @@ jobs:
           password: ${{ secrets.FTP_PASS }}
           local-dir: build/app/outputs/apk/release/
           server-dir: /public_html/
+          dangerous-clean-slate: true
