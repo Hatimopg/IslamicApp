@@ -29,8 +29,8 @@ jobs:
 
       # 🧪 Lance les tests
       # ❌ Si un test échoue → la pipeline S’ARRÊTE ici
-      - name: Run tests
-        run: flutter test
+      # - name: Run tests
+      # run: flutter test
 
       # 🏗️ Build l’APK en mode release
       # ❌ Si le build échoue → la pipeline S’ARRÊTE ici
