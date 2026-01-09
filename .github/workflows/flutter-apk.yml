@@ -21,7 +21,7 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.19.0"
+          flutter-version: "3.38.6"
 
       # 📦 Télécharge les dépendances Flutter
       - name: Install dependencies
