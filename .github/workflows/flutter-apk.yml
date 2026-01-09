@@ -46,4 +46,3 @@ jobs:
           password: ${{ secrets.FTP_PASS }}
           local-dir: build/app/outputs/apk/release/
           server-dir: /domains/sybauu.com/public_html/
-          dangerous-clean-slate: true

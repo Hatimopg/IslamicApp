@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:math';
+
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hijri/hijri_calendar.dart';
 
+import '../theme/lci_theme.dart';
 import '../utils/location_mapper.dart';
 import '../utils/city_storage.dart';
 import '../utils/token_storage.dart';
 import '../utils/notification_service.dart';
-import '../theme/lci_theme.dart';
 
 import 'community_chat.dart';
 import 'private_users.dart';
@@ -39,27 +40,29 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int index = 0;
 
-  // ---------------- VERSET ----------------
+  /* ===================== VERSET ===================== */
+  final AudioPlayer player = AudioPlayer();
+  bool isPlaying = false;
+
   String verse = "Chargement...";
   String surahName = "";
   int surahNumber = 0;
   int ayahNumber = 0;
   int currentAyah = Random().nextInt(6236) + 1;
 
-  final AudioPlayer player = AudioPlayer();
-  bool isPlaying = false;
+  /* ===================== HADITH ===================== */
+  String hadith = "Chargement...";
+  String hadithSource = "";
 
-  // ---------------- PRIÈRES ----------------
+  /* ===================== PRIÈRES ===================== */
   Map<String, dynamic>? prayerTimes;
   String nextPrayer = "";
-  Duration countdown = Duration.zero;
 
-  // ---------------- MÉTÉO ----------------
+  /* ===================== MÉTÉO ===================== */
   Map<String, dynamic>? weather;
 
-  // ---------------- LOCALISATION ----------------
-  String country = "Belgium"; // API AlAdhan → anglais
-  String region = "";
+  /* ===================== LOCALISATION ===================== */
+  String country = "Belgium";
   String selectedCity = "Brussels";
 
   final String baseUrl =
@@ -70,91 +73,77 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadUserLocation();
     fetchRandomVerse();
+    fetchHadith();
 
     player.onPlayerComplete.listen((_) {
       setState(() => isPlaying = false);
     });
   }
 
-  // ================= LOCALISATION =================
+  /* ===================== LOCALISATION ===================== */
   Future<void> loadUserLocation() async {
-    // 1️⃣ ville déjà choisie
     final savedCity = await CityStorage.get();
     if (savedCity != null) {
       setState(() => selectedCity = savedCity);
-      fetchPrayerTimes();
-      fetchWeather();
-      return;
-    }
+    } else {
+      try {
+        final token = await TokenStorage.getToken();
+        if (token == null) throw Exception();
 
-    // 2️⃣ sinon via profil
-    try {
-      final token = await TokenStorage.getToken();
+        final res = await http.get(
+          Uri.parse("$baseUrl/profile/${widget.userId}"),
+          headers: {"Authorization": "Bearer $token"},
+        );
 
-      if (token == null) throw Exception("NO TOKEN");
-
-      final res = await http.get(
-        Uri.parse("$baseUrl/profile/${widget.userId}"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final c = data["country"]?.toString() ?? "";
-        final r = data["region"]?.toString() ?? "";
-
-        final city = resolveCity(c, r);
-
-        setState(() => selectedCity = city);
-        await CityStorage.save(city);
+        if (res.statusCode == 200) {
+          final d = jsonDecode(res.body);
+          final city = resolveCity(d["country"] ?? "", d["region"] ?? "");
+          setState(() => selectedCity = city);
+          await CityStorage.save(city);
+        }
+      } catch (_) {
+        setState(() => selectedCity = "Ronse");
       }
-    } catch (_) {
-      setState(() => selectedCity = "Ronse");
     }
 
     fetchPrayerTimes();
     fetchWeather();
   }
 
-  // ================= CITY PICKER =================
+  /* ===================== CITY PICKER ===================== */
   void showCityPicker() {
-    const belgianCities = [
+    const cities = [
       "Ronse",
       "Brussels",
       "Antwerp",
       "Ghent",
-      "Charleroi",
       "Liège",
       "Mons",
-      "Tournai",
-      "Arlon",
-      "Bruges",
+      "Bruges"
     ];
 
     showModalBottomSheet(
       context: context,
       builder: (_) => ListView(
-        children: belgianCities.map((city) {
-          return ListTile(
-            title: Text(city),
-            trailing: city == selectedCity
-                ? const Icon(Icons.check, color: Colors.teal)
-                : null,
-            onTap: () async {
-              Navigator.pop(context);
-              setState(() => selectedCity = city);
-              await CityStorage.save(city);
-              fetchPrayerTimes();
-              fetchWeather();
-            },
-          );
-        }).toList(),
+        children: cities
+            .map((c) => ListTile(
+          title: Text(c),
+          trailing:
+          c == selectedCity ? const Icon(Icons.check) : null,
+          onTap: () async {
+            Navigator.pop(context);
+            setState(() => selectedCity = c);
+            await CityStorage.save(c);
+            fetchPrayerTimes();
+            fetchWeather();
+          },
+        ))
+            .toList(),
       ),
     );
   }
 
-
-  // ================= VERSET =================
+  /* ===================== VERSET ===================== */
   Future<void> fetchRandomVerse() async {
     currentAyah = Random().nextInt(6236) + 1;
 
@@ -173,58 +162,55 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (_) {
-      setState(() => verse = "Erreur de chargement du verset");
+      setState(() => verse = "Erreur de chargement");
     }
   }
 
   Future<void> playAudio() async {
     final url =
         "https://cdn.islamic.network/quran/audio/128/ar.alafasy/$currentAyah.mp3";
+    await player.stop();
+    await player.play(UrlSource(url));
+    setState(() => isPlaying = true);
+  }
+
+  /* ===================== HADITH ===================== */
+  Future<void> fetchHadith() async {
     try {
-      await player.stop();
-      await player.play(UrlSource(url));
-      setState(() => isPlaying = true);
-    } catch (_) {}
+      final res = await http.get(
+        Uri.parse("https://api.sunnah.com/v1/hadiths/random"),
+        headers: {"X-API-Key": "DEMO_KEY"},
+      );
+
+      if (res.statusCode == 200) {
+        final d = jsonDecode(res.body);
+        setState(() {
+          hadith = d["hadith"][0]["body"] ?? "Hadith indisponible";
+          hadithSource = d["hadith"][0]["collection"] ?? "";
+        });
+      }
+    } catch (_) {
+      setState(() => hadith = "Hadith indisponible");
+    }
   }
 
-  Future<void> pauseAudio() async {
-    await player.pause();
-    setState(() => isPlaying = false);
-  }
-
-  void nextVerse() {
-    player.stop();
-    isPlaying = false;
-    fetchRandomVerse();
-  }
-
-  // ================= PRIÈRES =================
+  /* ===================== PRIÈRES ===================== */
   Future<void> fetchPrayerTimes() async {
     try {
       final res = await http.get(Uri.parse(
           "https://api.aladhan.com/v1/timingsByCity?city=$selectedCity&country=$country&method=2"));
 
       if (res.statusCode == 200) {
-        setState(() {
-          prayerTimes = jsonDecode(res.body)["data"]["timings"];
-        });
+        prayerTimes = jsonDecode(res.body)["data"]["timings"];
         computeNextPrayer();
-
         scheduleAdhanNotifications();
+        setState(() {});
       }
-      else {
-        setState(() => prayerTimes = {});
-      }
-    } catch (_) {
-      setState(() => prayerTimes = {});
-    }
+    } catch (_) {}
   }
 
   void computeNextPrayer() {
-    if (prayerTimes == null || prayerTimes!.isEmpty) return;
-
     final now = DateTime.now();
-
     for (final p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
       final t = prayerTimes![p].split(":");
       final time = DateTime(
@@ -234,26 +220,21 @@ class _HomePageState extends State<HomePage> {
         int.parse(t[0]),
         int.parse(t[1]),
       );
-
       if (time.isAfter(now)) {
-        setState(() => nextPrayer = p);
+        nextPrayer = p;
         return;
       }
     }
-
-    setState(() => nextPrayer = "Fajr (demain)");
+    nextPrayer = "Fajr (demain)";
   }
 
-
   void scheduleAdhanNotifications() {
-    if (prayerTimes == null || prayerTimes!.isEmpty) return;
-
-    final now = DateTime.now();
+    if (prayerTimes == null) return;
     int id = 0;
+    final now = DateTime.now();
 
     for (final p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
       final t = prayerTimes![p].split(":");
-
       DateTime time = DateTime(
         now.year,
         now.month,
@@ -261,11 +242,7 @@ class _HomePageState extends State<HomePage> {
         int.parse(t[0]),
         int.parse(t[1]),
       );
-
-      // Si l'heure est déjà passée → demain
-      if (time.isBefore(now)) {
-        time = time.add(const Duration(days: 1));
-      }
+      if (time.isBefore(now)) time = time.add(const Duration(days: 1));
 
       NotificationService.schedule(
         id: id++,
@@ -276,12 +253,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ================= MÉTÉO =================
+  /* ===================== MÉTÉO ===================== */
   Future<void> fetchWeather() async {
     try {
       final geo = await http.get(Uri.parse(
           "https://geocoding-api.open-meteo.com/v1/search?name=$selectedCity"));
-
       final g = jsonDecode(geo.body);
       if (g["results"] == null) return;
 
@@ -297,24 +273,22 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
   }
 
-  // ================= UI =================
+  /* ===================== UI ===================== */
   @override
   Widget build(BuildContext context) {
     final pages = [
-      buildHome(), // 0 Accueil
+      buildHome(),
       CommunityChatPage(
         userId: widget.userId,
         username: widget.username,
         profile: widget.profile,
-      ),            // 1 Communauté
-      PrivateUsersPage(myId: widget.userId), // 2 Privé
-      IslamicQuizPage(),  // 3 Jeu
-      const QiblaCompassPage(), // 4 Qibla
-      DonationPage(), // 5 Dons
-      ProfilePage(userId: widget.userId), // 6 Profil
+      ),
+      PrivateUsersPage(myId: widget.userId),
+      IslamicQuizPage(),
+      const QiblaCompassPage(),
+      DonationPage(),
+      ProfilePage(userId: widget.userId),
     ];
-
-
 
     return Scaffold(
       appBar: AppBar(
@@ -348,147 +322,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  // ================= CALENDRIER ISLAMIQUE =================
-// ================= CALENDRIER ISLAMIQUE (MODERNE + RAMADAN) =================
-  Widget buildHijriCalendarCard() {
-    final hijri = HijriCalendar.now();
-    final today = DateTime.now();
 
-    final months = [
-      "Muharram",
-      "Safar",
-      "Rabiʿ al-Awwal",
-      "Rabiʿ al-Thani",
-      "Jumada al-Ula",
-      "Jumada al-Thania",
-      "Rajab",
-      "Shaʿban",
-      "Ramadan",
-      "Shawwal",
-      "Dhu al-Qiʿdah",
-      "Dhu al-Hijjah",
-    ];
-
-    final bool isRamadan = hijri.hMonth == 9;
-    final int ramadanDay = hijri.hDay;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          colors: [
-            lciGreen.withOpacity(0.95),
-            lciGreenDark.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: lciGreen.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            // 🗓️ Jour Hijri (badge)
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Center(
-                child: Text(
-                  hijri.hDay.toString(),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 18),
-
-            // 📅 Infos
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.calendar_month,
-                          color: Colors.white, size: 18),
-                      SizedBox(width: 6),
-                      Text(
-                        "Calendrier islamique",
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    "${months[hijri.hMonth - 1]} ${hijri.hYear} AH",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    "📆 ${today.day}/${today.month}/${today.year}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                    ),
-                  ),
-
-                  // 🌙 JOUR X DE RAMADAN
-                  if (isRamadan) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        "🌙 Jour $ramadanDay de Ramadan",
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /* ===================== HOME ===================== */
   Widget buildHome() => ListView(
     padding: const EdgeInsets.all(20),
     children: [
@@ -496,10 +331,10 @@ class _HomePageState extends State<HomePage> {
         "Bienvenue, ${widget.username} 👋",
         style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
       ),
-      const SizedBox(height: 16),
-      buildHijriCalendarCard(),
-      const SizedBox(height: 28),
-      buildVerseCard(),
+      const SizedBox(height: 20),
+      buildHijriCalendar(),
+      const SizedBox(height: 24),
+      buildSwipeVerseHadith(),
       const SizedBox(height: 20),
       buildPrayerCard(),
       const SizedBox(height: 20),
@@ -507,30 +342,70 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
+  /* ===================== CALENDRIER ===================== */
+  Widget buildHijriCalendar() {
+    final h = HijriCalendar.now();
+    final isRamadan = h.hMonth == 9;
+
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("📅 Calendrier islamique",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(
+              "${h.hDay} ${h.longMonthName} ${h.hYear} AH",
+              style: const TextStyle(fontSize: 18),
+            ),
+            if (isRamadan)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Chip(label: Text("🌙 Ramadan")),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /* ===================== SWIPE ===================== */
+  Widget buildSwipeVerseHadith() => SizedBox(
+    height: 260,
+    child: PageView(
+      children: [
+        buildVerseCard(),
+        buildHadithCard(),
+      ],
+    ),
+  );
+
   Widget buildVerseCard() => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     child: Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("📖 Verset du jour",
               style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(verse),
-          const SizedBox(height: 6),
-          Text("Sourate $surahNumber — $surahName ($ayahNumber)"),
           const SizedBox(height: 10),
+          Expanded(child: Text(verse)),
+          Text("Sourate $surahNumber — $surahName ($ayahNumber)"),
           Row(
             children: [
-              ElevatedButton(
-                onPressed: isPlaying ? pauseAudio : playAudio,
-                child: Text(isPlaying ? "Pause" : "Écouter"),
+              IconButton(
+                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                onPressed: isPlaying ? player.pause : playAudio,
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: nextVerse,
+              TextButton(
+                onPressed: fetchRandomVerse,
                 child: const Text("Autre verset"),
-              ),
+              )
             ],
           )
         ],
@@ -538,27 +413,48 @@ class _HomePageState extends State<HomePage> {
     ),
   );
 
-  Widget buildPrayerCard() => Card(
+  Widget buildHadithCard() => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: prayerTimes == null || prayerTimes!.isEmpty
-          ? const Text("Horaires indisponibles")
-          : Column(
+      padding: const EdgeInsets.all(16),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("🕌 Horaires de prière"),
-          ...["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
-              .map((p) => Text("$p : ${prayerTimes![p]}")),
-          const SizedBox(height: 8),
-          Text("Prochaine : $nextPrayer"),
+          const Text("🕌 Hadith du jour",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Expanded(child: Text(hadith)),
+          Text(hadithSource, style: const TextStyle(fontSize: 12)),
         ],
       ),
     ),
   );
 
+  /* ===================== PRIÈRES ===================== */
+  Widget buildPrayerCard() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: prayerTimes == null
+          ? const Text("Horaires indisponibles")
+          : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("🕌 Horaires de prière",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
+              .map((p) => Text("$p : ${prayerTimes![p]}")),
+          const SizedBox(height: 8),
+          Text("⏭ Prochaine : $nextPrayer"),
+        ],
+      ),
+    ),
+  );
+
+  /* ===================== MÉTÉO ===================== */
   Widget buildWeatherCard() => Card(
     child: Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: weather == null
           ? const Text("Météo indisponible")
           : Text(
