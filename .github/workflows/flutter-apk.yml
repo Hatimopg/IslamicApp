@@ -20,28 +20,29 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
       - name: Auto bump version
         run: |
           sed -i "s/^version:.*/version: 1.0.${{ github.run_number }}+${{ github.run_number }}/" pubspec.yaml
-      # Tests désactivés volontairement
-      # - name: Run tests
-      #   run: flutter test
 
+      # 🏗️ Build APK release
       - name: Build release APK
         env:
-          CI: "true"   # 🔑 DIT À GRADLE QU’ON EST EN CI
+          CI: "true"
         run: flutter build apk --release
 
+      # ✏️ Renommage AU BON ENDROIT
       - name: Rename APK for website
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/LCI-Ronse-beta.apk
+          mv build/app/outputs/apk/release/app-release.apk \
+             build/app/outputs/apk/release/LCI-Ronse-beta.apk
 
+      # 🚀 Upload FTP (BON DOSSIER)
       - name: Upload APK to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          local-dir: build/app/outputs/flutter-apk/
+          local-dir: build/app/outputs/apk/release/
           server-dir: /public_html/
