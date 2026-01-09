@@ -50,14 +50,24 @@ android {
         }
     }
 
+    // 🔁 Détecte si on est en CI (GitHub Actions)
+    val isCI = System.getenv("CI") == "true"
+
     buildTypes {
         release {
-            // ✅ SIGNATURE PLAY STORE
-            signingConfig = signingConfigs.getByName("release")
+            // 🧠 CI → signature debug (APK site)
+            // 🏪 Local / Play Store → signature release
+            signingConfig = if (isCI) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }
+
             isMinifyEnabled = false
             isShrinkResources = false
         }
     }
+
 
     // ✅ FIX OFFICIEL (JNI / symbols)
     packaging {

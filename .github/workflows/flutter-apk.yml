@@ -35,9 +35,12 @@ jobs:
       # 🏗️ Build l’APK en mode release
       # ❌ Si le build échoue → la pipeline S’ARRÊTE ici
       - name: Build release APK
-        run: flutter build apk --release
+                 - env:
+                 - CI: "true"
+                 - run: flutter build apk --release
 
-      # ✏️ Renomme l’APK pour qu’il corresponde
+
+        # ✏️ Renomme l’APK pour qu’il corresponde
       # exactement au lien utilisé dans ton HTML
       - name: Rename APK for website
         run: |
