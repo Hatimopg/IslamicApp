@@ -349,8 +349,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
   // ================= CALENDRIER ISLAMIQUE =================
+// ================= CALENDRIER ISLAMIQUE (MODERNE + RAMADAN) =================
   Widget buildHijriCalendarCard() {
     final hijri = HijriCalendar.now();
+    final today = DateTime.now();
 
     final months = [
       "Muharram",
@@ -367,54 +369,119 @@ class _HomePageState extends State<HomePage> {
       "Dhu al-Hijjah",
     ];
 
-    return Card(
-      elevation: 3,
+    final bool isRamadan = hijri.hMonth == 9;
+    final int ramadanDay = hijri.hDay;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: [
+            lciGreen.withOpacity(0.95),
+            lciGreenDark.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: lciGreen.withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Row(
           children: [
+            // 🗓️ Jour Hijri (badge)
             Container(
-              padding: const EdgeInsets.all(14),
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: lciGreen.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: Text(
-                hijri.hDay.toString(),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+              child: Center(
+                child: Text(
+                  hijri.hDay.toString(),
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  months[hijri.hMonth - 1],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+
+            const SizedBox(width: 18),
+
+            // 📅 Infos
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.calendar_month,
+                          color: Colors.white, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        "Calendrier islamique",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "${hijri.hYear} AH",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    "${months[hijri.hMonth - 1]} ${hijri.hYear} AH",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "📆 ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    "📆 ${today.day}/${today.month}/${today.year}",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
-                ),
-              ],
+
+                  // 🌙 JOUR X DE RAMADAN
+                  if (isRamadan) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        "🌙 Jour $ramadanDay de Ramadan",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -429,9 +496,9 @@ class _HomePageState extends State<HomePage> {
         "Bienvenue, ${widget.username} 👋",
         style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 16),
       buildHijriCalendarCard(),
-      const SizedBox(height: 20),
+      const SizedBox(height: 28),
       buildVerseCard(),
       const SizedBox(height: 20),
       buildPrayerCard(),
