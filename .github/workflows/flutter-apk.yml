@@ -47,7 +47,7 @@ jobs:
       # 🚀 Upload automatique sur Hostinger via FTP
       # ❌ Si FTP KO → pipeline FAIL
       - name: Upload APK to Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
