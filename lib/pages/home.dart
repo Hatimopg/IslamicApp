@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:hijri/hijri_calendar.dart';
 
 import '../utils/location_mapper.dart';
 import '../utils/city_storage.dart';
@@ -347,6 +348,79 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+  // ================= CALENDRIER ISLAMIQUE =================
+  Widget buildHijriCalendarCard() {
+    final hijri = HijriCalendar.now();
+
+    final months = [
+      "Muharram",
+      "Safar",
+      "Rabiʿ al-Awwal",
+      "Rabiʿ al-Thani",
+      "Jumada al-Ula",
+      "Jumada al-Thania",
+      "Rajab",
+      "Shaʿban",
+      "Ramadan",
+      "Shawwal",
+      "Dhu al-Qiʿdah",
+      "Dhu al-Hijjah",
+    ];
+
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: lciGreen.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                hijri.hDay.toString(),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  months[hijri.hMonth - 1],
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${hijri.hYear} AH",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "📆 ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget buildHome() => ListView(
     padding: const EdgeInsets.all(20),
@@ -355,6 +429,8 @@ class _HomePageState extends State<HomePage> {
         "Bienvenue, ${widget.username} 👋",
         style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
       ),
+      const SizedBox(height: 20),
+      buildHijriCalendarCard(),
       const SizedBox(height: 20),
       buildVerseCard(),
       const SizedBox(height: 20),

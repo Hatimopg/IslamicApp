@@ -1,0 +1,113 @@
+[33m2ee061c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m amelioration de server
+[33m4531872[m amelioration de server
+[33m2ca1a79[m amelioration de server
+[33m302b315[m amelioration de la privacy et le site apk pr download
+[33m8c891fb[m amelioration de la boussole
+[33mca7dd6f[m amelioration de la boussole
+[33m6efbcc6[m amelioration du quizz
+[33mf89e839[m logo de l'appli+ couleur changé
+[33m7cefdad[m logo de l'appli
+[33m3d88ad6[m package du mainactivity
+[33mc6cb7ad[m package du mainactivity
+[33m2b8c9db[m Serve privacy policy page
+[33m906bed0[m Serve privacy policy page
+[33m8b439f7[m Serve privacy policy page
+[33ma3ab1f3[m apk v1.8.5 pour playstore
+[33me1b7b95[m apk v1.8.5 pour playstore
+[33m9d799ce[m apk v1.8.4 son du jeu + login facile
+[33mf8f98d1[m apk v1.8.4 son du jeu + login facile
+[33m5d1a60b[m apk v1.8.3 notif adhan
+[33m6470146[m apk v1.8.3 notif adhan
+[33m3b51fe7[m apk v1.8.3 notif adhan
+[33m035fe3a[m apk v1.8.2 private chat plus clean + insultes interdits + badge message
+[33m8ca5d7d[m apk v1.8.2 private chat plus clean + insultes interdits
+[33m73e36f0[m apk v1.8.1 modif des pdp avec Cloudinary
+[33m318ec84[m apk v1.8.1 modif des pdp avec Cloudinary
+[33m0b7a72b[m apk v1.8.1 modif des pdp avec Cloudinary
+[33m5cde43c[m apk v1.8 le jeu de questions
+[33m76fdb2c[m apk v1.7 les dons off
+[33m2504c9b[m apk v1.7 les dons
+[33mdecc4d3[m apk v1.7 les dons
+[33mb294301[m apk v1.7 les dons
+[33ma914c66[m apk v1.7 les dons
+[33mecfcf21[m apk v1.6 securisation de l'appli au login+ Qibla
+[33mb083e71[m apk v1.6 securisation de l'appli au login+ Qibla
+[33m270c1c8[m apk v1.6 securisation de l'appli au login+ Qibla
+[33m29116dd[m apk v1.6 securisation de l'appli au login
+[33m6dc7500[m apk v1.5 pour le login always
+[33m12e9d60[m apk v1.4
+[33m93c838f[m apk v1.3
+[33mbc2a2bf[m apk v1.2
+[33m39f497b[m apk v2
+[33mf1dac16[m le build gradle+ apk
+[33m6ef1bd7[m le build gradle
+[33m2933670[m le build gradle
+[33m3c29c90[m le build gradle
+[33m6b51a97[m add privacy policy page mais plus propre genre la derniere maj
+[33m245bbde[m add privacy policy page mais plus propre genre la derniere maj
+[33mf659bcf[m add privacy policy page
+[33m690eea4[m ajout du auth + JWT
+[33m31ddbf2[m ajout du auth + JWT
+[33m0cf7e61[m modif des couleurs et dark mode
+[33m4db9f3d[m la 1ere version de l'acceuil ( couleur et audio à régler)
+[33mec57275[m les logs + monitoring pro DEVOPS
+[33m1611841[m les logs + monitoring pro DEVOPS
+[33m13e2d3e[m les logs sans soucis + le profile dans le serveur
+[33mabdb8df[m les logs sans soucis
+[33md07e377[m Enable Logtail fully
+[33m0458eff[m les logs
+[33m7d102ec[m le private chat correction
+[33md9550a5[m le private chat correction
+[33m9d32c35[m le private chat correction
+[33m2aecbaa[m le private chat correction
+[33m153af4f[m le private chat
+[33mfc17500[m config du chat commu et le reste
+[33mdb11cbd[m le firebase et mysql
+[33m331e405[m fonction du chat avec firebase beta1
+[33m573eacd[m fonction du chat avec firebase beta
+[33mdf2e67a[m fonction du chat 2e version
+[33m4e98353[m fonction du chat 1ere version
+[33m66d1d25[m fonction du chat 1ere version
+[33m559f0b7[m fonction du chat 1ere version
+[33mb5bd1d2[m fonction de supression du compte + le pop up + le SUPPRIMER
+[33mbbafc6d[m fonction de supression du compte + le pop up + le SUPPRIMER
+[33m7685a89[m fonction de supression du compte + le pop up
+[33m003ad8b[m fonction de supression du compte
+[33m0e99a72[m pdp par default + la changer + code moins lourd
+[33m962a94a[m pdp par default + la changer + code moins lourd
+[33mf97885a[m pdp par default + la changer
+[33me7f2db7[m pdp par default
+[33m467a452[m fonction photo de profil finale 2
+[33m269f01a[m fonction photo de profil finale v2
+[33m789742d[m fonction photo de profil finale v2
+[33mdbd5474[m fonction photo de profil finale v2
+[33m4c7e467[m fonction photo de profil finale
+[33m1d97dd3[m fonction photo de profil
+[33m27fe784[m fonction photo de profil
+[33m805f2b6[m fonction photo de profil
+[33m38cf82a[m fonction photo de profil
+[33mfe56698[m fonction photo de profil
+[33mbbf0c6a[m fonction photo de profil
+[33m6e243a5[m profile et frontend ameliorés
+[33mfb16850[m profile et frontend ameliorés
+[33m2c647e9[m update du db
+[33mf3894ff[m L pipline
+[33m3b81c9a[m pipeline final 100%  vrai
+[33m3224eb8[m fix ppline
+[33mc628208[m fix pipeline final stpp
+[33m09a6bd7[m fix pipeline final
+[33m9d22343[m fix pipeline
+[33m1dd4005[m le dossier github pr la pipline pr de vrai
+[33m11bc810[m Add GitHub Actions workflow for Railway deployment
+[33medf6bd7[m le dossier github pr la pipline
+[33ma798909[m changement de lien pr les pages et index
+[33m9795acb[m changement de lien pr les pages
+[33m19483be[m pr fixer l'url de railway
+[33m1b14fc0[m fix db.js et index et on bouge le env
+[33m3e8dc0e[m remove env
+[33mf8bd82f[m fix db.js et index pr railway
+[33mf279c4a[m fix db.js
+[33me3288d0[m amelioration des pages etc etc
+[33me90e12d[m merge remote
+[33m5e7a940[m Initial commit: Flutter + backend setup
+[33m677031e[m Initial commit

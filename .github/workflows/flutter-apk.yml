@@ -1,0 +1,56 @@
+name: Flutter APK → Hostinger
+
+# 🔁 Déclenchement automatique
+# La pipeline se lance à CHAQUE push sur la branche main
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    # 🖥️ Machine virtuelle Linux fournie par GitHub
+    runs-on: ubuntu-latest
+
+    steps:
+      # 📥 Récupère le code depuis le repo GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 🧰 Installe Flutter sur la machine
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.0"
+
+      # 📦 Télécharge les dépendances Flutter
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 🧪 Lance les tests
+      # ❌ Si un test échoue → la pipeline S’ARRÊTE ici
+      - name: Run tests
+        run: flutter test
+
+      # 🏗️ Build l’APK en mode release
+      # ❌ Si le build échoue → la pipeline S’ARRÊTE ici
+      - name: Build release APK
+        run: flutter build apk --release
+
+      # ✏️ Renomme l’APK pour qu’il corresponde
+      # exactement au lien utilisé dans ton HTML
+      - name: Rename APK for website
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/LCI-Ronse-beta.apk
+
+      # 🚀 Upload automatique sur Hostinger via FTP
+      # ❌ Si FTP KO → pipeline FAIL
+      - name: Upload APK to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: build/app/outputs/flutter-apk/
+          server-dir: /public_html/
