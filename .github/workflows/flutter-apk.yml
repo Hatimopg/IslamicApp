@@ -45,5 +45,5 @@ jobs:
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
           local-dir: build/app/outputs/apk/release/
-          server-dir: /public_html/
+          server-dir: /domains/sybauu.com/public_html/
           dangerous-clean-slate: true
