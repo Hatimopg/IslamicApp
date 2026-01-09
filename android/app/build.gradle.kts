@@ -43,12 +43,17 @@ android {
     // ✅ CONFIG SIGNATURE RELEASE
     signingConfigs {
         create("release") {
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+            val storeFilePath = keystoreProperties["storeFile"] as String?
+
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = keystoreProperties["storePassword"] as String?
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+            }
         }
     }
+
 
     // 🔁 Détecte si on est en CI (GitHub Actions)
     val isCI = System.getenv("CI") == "true"
