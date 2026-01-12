@@ -25,6 +25,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "IslamicApp API",
+    uptime: process.uptime(),
+  });
+});
+
 // 🔓 FICHIERS STATIQUES (privacy policy)
 app.use(express.static("public"));
 
@@ -315,68 +323,6 @@ app.post("/chat/send", auth, async (req, res) => {
   }
 });
 
-
-/* ============================================================
-   admin
-=============================================================== */
-
-app.post("/chat/send", auth, async (req, res) => {
-  try {
-    const { message, chatType, chatId, toUserId } = req.body;
-
-    if (!message || !message.trim()) {
-      return res.status(400).json({ error: "Message vide" });
-    }
-
-    // 🚫 Filtre langage
-    if (containsForbiddenWords(message)) {
-      return res.status(403).json({
-        error: "Message refusé : langage interdit",
-      });
-    }
-
-    // 🔇 Vérif mute
-    const userDoc = await firestore
-      .collection("users")
-      .doc(req.userId.toString())
-      .get();
-
-    if (userDoc.data()?.mutedUntil > Date.now()) {
-      return res.status(403).json({
-        error: "Vous êtes temporairement mute",
-      });
-    }
-
-    // 🔥 COMMUNITY
-    if (chatType === "community") {
-      await firestore.collection("community_messages").add({
-        message,
-        sender_id: req.userId,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
-    // 🔥 PRIVATE
-    if (chatType === "private") {
-      await firestore
-        .collection("private_chats")
-        .doc(chatId)
-        .collection("messages")
-        .add({
-          from: req.userId,
-          to: toUserId,
-          text: message,
-          seen: false,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
 
 
 app.delete("/moderation/message/:collection/:id", auth, async (req, res) => {
