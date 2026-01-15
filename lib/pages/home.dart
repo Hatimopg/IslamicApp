@@ -11,6 +11,7 @@ import '../utils/location_mapper.dart';
 import '../utils/city_storage.dart';
 import '../utils/token_storage.dart';
 import '../utils/notification_service.dart';
+import '../utils/update_checker.dart';
 
 import 'community_chat.dart';
 import 'private_users.dart';
@@ -98,6 +99,7 @@ class _HomePageState extends State<HomePage> {
     loadUserLocation();
     fetchRandomVerse();
     fetchHadith();
+    UpdateChecker.check();
 
     player.onPlayerComplete.listen((_) {
       setState(() => isPlaying = false);

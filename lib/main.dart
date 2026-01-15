@@ -6,6 +6,8 @@ import 'firebase_options.dart';
 import 'pages/login.dart';
 import 'utils/notification_service.dart';
 import 'theme/lci_theme.dart';
+import 'utils/update_checker.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +61,7 @@ class _IslamicAppState extends State<IslamicApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
   }
+
 
   @override
   void dispose() {
