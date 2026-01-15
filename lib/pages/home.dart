@@ -230,7 +230,6 @@ class _HomePageState extends State<HomePage> {
       if (res.statusCode == 200) {
         prayerTimes = jsonDecode(res.body)["data"]["timings"];
         computeNextPrayer();
-        scheduleAdhanNotifications();
         setState(() {});
       }
     } catch (_) {}
