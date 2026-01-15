@@ -1,44 +1,55 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 class NotificationService {
-  static final _plugin = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _plugin =
+  FlutterLocalNotificationsPlugin();
 
+  /// 🔧 Initialisation (à appeler dans main)
   static Future<void> init() async {
-    tz.initializeTimeZones();
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    const settings = InitializationSettings(
+      android: androidInit,
+    );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) async {
+        if (response.payload != null && response.payload!.isNotEmpty) {
+          final uri = Uri.parse(response.payload!);
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+    );
+
+    // 🔔 Android 13+ permission
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestPermission();
   }
 
-  static Future<void> schedule({
-    required int id,
-    required String title,
-    required String body,
-    required DateTime time,
-  }) async {
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(time, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'adhan_channel',
-          'Adhan',
-          importance: Importance.high,
-          priority: Priority.high,
-          playSound: false, // 🔕 popup only
-          enableVibration: false,
-        ),
-      ),
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
+  /// ⬆️ Notification de mise à jour (clic → sybauu.com)
+  static Future<void> showUpdate() async {
+    const androidDetails = AndroidNotificationDetails(
+      'update_channel',
+      'Mises à jour',
+      channelDescription: 'Notification de mise à jour de l’application',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+
+    await _plugin.show(
+      999,
+      "⬆️ Mise à jour disponible",
+      "Une nouvelle version est prête. Appuie pour installer.",
+      details,
+      payload: "https://sybauu.com",
     );
   }
 }
