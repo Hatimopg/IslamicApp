@@ -42,6 +42,10 @@ class _HomePageState extends State<HomePage> {
   int index = 0;
   int calendarPage = 0;
   int versePage = 0;
+  String hadith = "Chargement...";
+  String hadithSource = "";
+  int hadithOffset = 0;
+
 
   /* ===================== LES DOTS PR LE SWIPE ===================== */
 
@@ -201,26 +205,43 @@ class _HomePageState extends State<HomePage> {
   }
 
   /* ===================== HADITH ===================== */
-  Future<void> fetchHadith() async {
+  Future<void> fetchHadith({bool forceNew = false}) async {
     try {
-      final res = await http.get(
-        Uri.parse("https://api.hadith.sutanlab.id/books/muslim?range=1-1"),
-      );
+      final now = DateTime.now();
+      final dayOfYear =
+          now.difference(DateTime(now.year, 1, 1)).inDays;
+
+      // 🔁 Change si bouton pressé
+      if (forceNew) {
+        hadithOffset++;
+      }
+
+      final hadithNumber = ((dayOfYear + hadithOffset) % 300) + 1;
+
+      final url =
+          "https://api.hadith.gading.dev/books/muslim?range=$hadithNumber-$hadithNumber";
+
+      final res = await http.get(Uri.parse(url));
 
       if (res.statusCode == 200) {
-        final d = jsonDecode(res.body);
-        setState(() {
-          hadith = d["data"]["hadiths"][0]["arab"] ??
-              "Hadith indisponible";
-          hadithSource = "Sahih Muslim";
-        });
-      } else {
-        setState(() => hadith = "Hadith indisponible");
+        final data = jsonDecode(res.body);
+        final list = data["data"]?["hadiths"];
+
+        if (list != null && list.isNotEmpty) {
+          setState(() {
+            hadith = list[0]["arab"] ?? "Hadith indisponible";
+            hadithSource = "Sahih Muslim";
+          });
+          return;
+        }
       }
+
+      setState(() => hadith = "Hadith indisponible");
     } catch (_) {
       setState(() => hadith = "Erreur de chargement du hadith");
     }
   }
+
 
 
   /* ===================== PRIÈRES ===================== */
@@ -522,8 +543,6 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // 👇 ICI AUSSI
           Row(
             children: const [
               Icon(Icons.swipe, size: 16, color: lciGreen),
@@ -534,21 +553,31 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-
           const SizedBox(height: 6),
-
           const Text(
             "🕌 Hadith du jour",
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-
           const SizedBox(height: 10),
           Expanded(child: Text(hadith)),
+          const SizedBox(height: 8),
           Text(hadithSource, style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 6),
+
+          // 👇 BOUTON NOUVEAU HADITH
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => fetchHadith(forceNew: true),
+              icon: const Icon(Icons.refresh),
+              label: const Text("Nouveau hadith"),
+            ),
+          ),
         ],
       ),
     ),
   );
+
 
 
   /* ===================== PRIÈRES ===================== */
