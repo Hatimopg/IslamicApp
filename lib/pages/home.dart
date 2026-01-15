@@ -42,9 +42,6 @@ class _HomePageState extends State<HomePage> {
   int index = 0;
   int calendarPage = 0;
   int versePage = 0;
-  String hadith = "Chargement...";
-  String hadithSource = "";
-  int hadithOffset = 0;
 
 
   /* ===================== LES DOTS PR LE SWIPE ===================== */
@@ -82,6 +79,7 @@ class _HomePageState extends State<HomePage> {
   /* ===================== HADITH ===================== */
   String hadith = "Chargement...";
   String hadithSource = "";
+  int hadithOffset = 0;
 
   /* ===================== PRIÈRES ===================== */
   Map<String, dynamic>? prayerTimes;
