@@ -102,6 +102,8 @@ class _HomePageState extends State<HomePage> {
     fetchRandomVerse();
     fetchHadith();
     UpdateChecker.check();
+    NotificationService.scheduleDailyVerse();
+    NotificationService.scheduleDailyHadith();
 
     player.onPlayerComplete.listen((_) {
       setState(() => isPlaying = false);
