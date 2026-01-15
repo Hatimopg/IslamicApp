@@ -23,7 +23,10 @@ jobs:
 
       - name: Auto bump version
         run: |
-          sed -i "s/^version:.*/version: 1.0.${{ github.run_number }}+${{ github.run_number }}/" pubspec.yaml
+          BASE=1000
+          BUILD=$((BASE + ${{ github.run_number }}))
+          sed -i "s/^version:.*/version: 2.2.2+$BUILD/" pubspec.yaml
+      
 
       # 🏗️ Build APK release
       - name: Build release APK
@@ -31,14 +34,24 @@ jobs:
           CI: "true"
         run: flutter build apk --release
 
-      # ✏️ Renommage AU BON ENDROIT
+      # ✏️ Renommage APK
       - name: Rename APK for website
         run: |
           mv build/app/outputs/apk/release/app-release.apk \
              build/app/outputs/apk/release/LCI-Ronse-beta.apk
 
-      # 🚀 Upload FTP (FORCE ÉCRASEMENT)
-      - name: Upload APK to Hostinger via FTP
+      # 📝 Génération du version.json
+      - name: Generate version.json
+        run: |
+          echo '{
+            "version_code": '${{ github.run_number }}',
+            "version_name": "1.0.${{ github.run_number }}",
+            "apk_url": "https://sybauu.com/LCI-Ronse-beta.apk",
+            "changelog": "Nouvelle mise à jour disponible"
+          }' > build/app/outputs/apk/release/version.json
+
+      # 🚀 Upload APK + version.json vers Hostinger
+      - name: Upload to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}

@@ -39,6 +39,30 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int index = 0;
+  int calendarPage = 0;
+  int versePage = 0;
+
+  /* ===================== LES DOTS PR LE SWIPE ===================== */
+
+  Widget buildDots(int count, int index) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        count,
+            (i) => AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: i == index ? 14 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: i == index ? lciGreen : lciGreenLight,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   /* ===================== VERSET ===================== */
   final AudioPlayer player = AudioPlayer();
@@ -178,21 +202,24 @@ class _HomePageState extends State<HomePage> {
   Future<void> fetchHadith() async {
     try {
       final res = await http.get(
-        Uri.parse("https://api.sunnah.com/v1/hadiths/random"),
-        headers: {"X-API-Key": "DEMO_KEY"},
+        Uri.parse("https://api.hadith.sutanlab.id/books/muslim?range=1-1"),
       );
 
       if (res.statusCode == 200) {
         final d = jsonDecode(res.body);
         setState(() {
-          hadith = d["hadith"][0]["body"] ?? "Hadith indisponible";
-          hadithSource = d["hadith"][0]["collection"] ?? "";
+          hadith = d["data"]["hadiths"][0]["arab"] ??
+              "Hadith indisponible";
+          hadithSource = "Sahih Muslim";
         });
+      } else {
+        setState(() => hadith = "Hadith indisponible");
       }
     } catch (_) {
-      setState(() => hadith = "Hadith indisponible");
+      setState(() => hadith = "Erreur de chargement du hadith");
     }
   }
+
 
   /* ===================== PRIÈRES ===================== */
   Future<void> fetchPrayerTimes() async {
@@ -343,46 +370,126 @@ class _HomePageState extends State<HomePage> {
   );
 
   /* ===================== CALENDRIER ===================== */
+
   Widget buildHijriCalendar() {
     final h = HijriCalendar.now();
-    final isRamadan = h.hMonth == 9;
 
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("📅 Calendrier islamique",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              "${h.hDay} ${h.longMonthName} ${h.hYear} AH",
-              style: const TextStyle(fontSize: 18),
-            ),
-            if (isRamadan)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Chip(label: Text("🌙 Ramadan")),
+    final events = [
+      {"title": "🌙 Ramadan", "date": "17 février 2026"},
+      {"title": "🕌 Laylat al-Qadr", "date": "8 avril 2026"},
+      {"title": "🐑 Aïd al-Fitr", "date": "19 mars 2026"},
+      {"title": "🐪 Aïd al-Adha", "date": "27 mai 2026"},
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 190,
+          child: PageView(
+            onPageChanged: (i) => setState(() => calendarPage = i),
+            children: [
+              // PAGE 1 — DATE
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: LinearGradient(
+                    colors: [lciGreen, lciGreenDark],
+                  ),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "📅 Aujourd’hui (Hijri)",
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      "${h.hDay} ${h.longMonthName}",
+                      style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    Text(
+                      "${h.hYear} AH",
+                      style: const TextStyle(
+                          fontSize: 18, color: Colors.white70),
+                    ),
+                    const Spacer(),
+                    Text(
+                      "📆 ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
+                      style: const TextStyle(color: Colors.white60),
+                    ),
+                  ],
+                ),
               ),
-          ],
+
+              // PAGE 2 — ÉVÉNEMENTS
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "✨ Dates importantes 2026",
+                        style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 10),
+                      ...events.map(
+                            (e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.event, size: 18, color: lciGreen),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${e["title"]} — ${e["date"]}",
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 10),
+        buildDots(2, calendarPage),
+      ],
     );
   }
 
+
   /* ===================== SWIPE ===================== */
-  Widget buildSwipeVerseHadith() => SizedBox(
-    height: 260,
-    child: PageView(
-      children: [
-        buildVerseCard(),
-        buildHadithCard(),
-      ],
-    ),
+  Widget buildSwipeVerseHadith() => Column(
+    children: [
+      SizedBox(
+        height: 260,
+        child: PageView(
+          onPageChanged: (i) => setState(() => versePage = i),
+          children: [
+            buildVerseCard(),
+            buildHadithCard(),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
+      buildDots(2, versePage),
+    ],
   );
+
 
   Widget buildVerseCard() => Card(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -391,8 +498,26 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("📖 Verset du jour",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+
+          // 👇 ICI (tout en haut)
+          Row(
+            children: const [
+              Icon(Icons.swipe, size: 16, color: lciGreen),
+              SizedBox(width: 6),
+              Text(
+                "Glisse pour changer",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          const Text(
+            "📖 Verset du jour",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+
           const SizedBox(height: 10),
           Expanded(child: Text(verse)),
           Text("Sourate $surahNumber — $surahName ($ayahNumber)"),
@@ -413,6 +538,7 @@ class _HomePageState extends State<HomePage> {
     ),
   );
 
+
   Widget buildHadithCard() => Card(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     child: Padding(
@@ -420,8 +546,26 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("🕌 Hadith du jour",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+
+          // 👇 ICI AUSSI
+          Row(
+            children: const [
+              Icon(Icons.swipe, size: 16, color: lciGreen),
+              SizedBox(width: 6),
+              Text(
+                "Glisse pour changer",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          const Text(
+            "🕌 Hadith du jour",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+
           const SizedBox(height: 10),
           Expanded(child: Text(hadith)),
           Text(hadithSource, style: const TextStyle(fontSize: 12)),
@@ -429,6 +573,7 @@ class _HomePageState extends State<HomePage> {
       ),
     ),
   );
+
 
   /* ===================== PRIÈRES ===================== */
   Widget buildPrayerCard() => Card(
