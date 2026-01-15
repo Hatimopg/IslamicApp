@@ -255,31 +255,6 @@ class _HomePageState extends State<HomePage> {
     nextPrayer = "Fajr (demain)";
   }
 
-  void scheduleAdhanNotifications() {
-    if (prayerTimes == null) return;
-    int id = 0;
-    final now = DateTime.now();
-
-    for (final p in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
-      final t = prayerTimes![p].split(":");
-      DateTime time = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        int.parse(t[0]),
-        int.parse(t[1]),
-      );
-      if (time.isBefore(now)) time = time.add(const Duration(days: 1));
-
-      NotificationService.schedule(
-        id: id++,
-        title: "🕌 Appel à la prière",
-        body: "C'est l'heure de $p",
-        time: time,
-      );
-    }
-  }
-
   /* ===================== MÉTÉO ===================== */
   Future<void> fetchWeather() async {
     try {

@@ -5,7 +5,6 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
   FlutterLocalNotificationsPlugin();
 
-  /// 🔧 Initialisation (à appeler dans main)
   static Future<void> init() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -22,12 +21,6 @@ class NotificationService {
         }
       },
     );
-
-    // 🔔 Android 13+ permission
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestPermission();
   }
 
   /// ⬆️ Notification de mise à jour (clic → sybauu.com)
@@ -38,8 +31,6 @@ class NotificationService {
       channelDescription: 'Notification de mise à jour de l’application',
       importance: Importance.high,
       priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
     );
 
     const details = NotificationDetails(android: androidDetails);
