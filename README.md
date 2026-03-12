@@ -106,7 +106,6 @@ API REST / HTTP
 ### 📦 Application mobile (APK)
 - **Hébergement** : Hostinger
 - L’APK est disponible via le site :
-  https://sybauu.com
 
 
 ---
