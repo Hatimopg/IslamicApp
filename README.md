@@ -1,12 +1,12 @@
 # 📱 Projet DevOps B3 Hatim Ben – Application Islamique
-### Mosquée de Renaix (Ronse)
+### Mosquée de ma ville
 
 ---
 
 ## 📌 Présentation générale
 
 Ce projet a été réalisé dans le cadre du cours **Projet DevOps (B3)**.  
-Il consiste en le développement, le déploiement et la maintenance d’une **application islamique mobile** destinée à la **mosquée de Renaix (Ronse)** et à sa communauté.
+Il consiste en le développement, le déploiement et la maintenance d’une **application islamique mobile** destinée à la **mosquée de ma ville** et à sa communauté.
 
 L’objectif principal est de mettre en pratique les **concepts DevOps** :
 - intégration continue (CI)
